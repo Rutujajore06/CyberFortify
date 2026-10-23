@@ -154,6 +154,26 @@ def get_overall_metrics():
     avg_f1 = round(eval_row['avg_f1'] or 0.0, 2)
     avg_latency = round(eval_row['avg_latency'] or 0.0, 2)
 
+    # Scenario breakdown for live chart visualizations
+    cursor.execute('''
+    SELECT 
+        e.attack_scenario,
+        SUM(e.is_attack) as attacks,
+        COUNT(DISTINCT CASE WHEN a.id IS NOT NULL AND e.is_attack = 1 THEN e.id END) as detected
+    FROM events e
+    LEFT JOIN alerts a ON a.trigger_event_id = e.id
+    WHERE e.attack_scenario IS NOT NULL
+    GROUP BY e.attack_scenario
+    ''')
+    scenario_rows = cursor.fetchall()
+    scenario_breakdown = {}
+    for r in scenario_rows:
+        sc = r['attack_scenario']
+        scenario_breakdown[sc] = {
+            'attacks': r['attacks'] or 0,
+            'detected': r['detected'] or 0
+        }
+
     conn.close()
     return {
         'total_runs': total_runs,
@@ -163,5 +183,6 @@ def get_overall_metrics():
         'detection_rate': avg_det_rate,
         'precision_rate': avg_precision,
         'f1_score': avg_f1,
-        'avg_latency_ms': avg_latency
+        'avg_latency_ms': avg_latency,
+        'scenario_breakdown': scenario_breakdown
     }

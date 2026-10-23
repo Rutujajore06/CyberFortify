@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}Evaluation & Defense Report{% endblock %}
+
+{% block extra_head %}
+<style>
+@media print {
+    .navbar, .footer, .btn, .no-print {
+        display: none !important;
+    }
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+    .card {
+        border: 1px solid #ccc !important;
+        background: #fff !important;
+        color: #000 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    h1, h2, h3, h4, th, td, div, span {
+        color: #000 !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <span>📄</span> Academic Project Defense & Evaluation Report
+        </h1>
+        <p class="page-description">
+            Comprehensive project evaluation document suitable for BTech project examination and defense review.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <button class="btn btn-primary no-print" onclick="window.print()">
+            <span>🖨️ Print / Save as PDF</span>
+        </button>
+    </div>
+</div>
+
+<!-- Project Overview Card -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h2 class="card-title" style="margin-bottom: 1rem;">Project Identification & Abstract</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">PROJECT NAME</div>
+            <strong style="color: #fff; font-size: 1.1rem;">CyberFortify</strong>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">PROJECT TYPE</div>
+            <strong style="color: var(--accent-cyan); font-size: 1.1rem;">BTech Final Year Cybersecurity Field Project</strong>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">ARCHITECTURE</div>
+            <strong style="color: #fff; font-size: 1.1rem;">Red Team Simulator + Blue Team SIEM Evaluator</strong>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">TARGET APPLICATION</div>
+            <strong style="color: #fff; font-size: 1.1rem;">Fortress Banking Portal (Isolated Mock Target)</strong>
+        </div>
+    </div>
+    <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+        <strong>Abstract:</strong> Modern cybersecurity relies heavily on intrusion detection systems (IDS) and security information and event management (SIEM) solutions. However, evaluating the efficacy, detection latency, and false-positive rates of these defenses in production is hazardous. <strong>CyberFortify</strong> establishes an automated, safe, and controlled testing environment where standardized adversary scenarios (authentication brute force, broken access control, SQL injection, and input validation/XSS) are executed against a dedicated local target application. Structured application audit logs are correlated through rule-based detection engines, and before-and-after retesting quantitatively evaluates defense remediations.
+    </p>
+</div>
+
+<!-- Theoretical Mathematical Formulas Card -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h2 class="card-title" style="margin-bottom: 1rem;">Mathematical Evaluation Framework</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-cyan);">
+            <div style="font-size: 0.8rem; color: var(--accent-cyan); font-weight: bold; margin-bottom: 0.25rem;">DETECTION RATE (RECALL / SENSITIVITY)</div>
+            <code style="display: block; margin: 0.5rem 0; font-size: 0.95rem;">Recall = TP / (TP + FN) &times; 100%</code>
+            <p style="font-size: 0.75rem; color: var(--text-secondary);">Proportion of actual attack simulations that were correctly identified and alerted by the Blue Team.</p>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-emerald);">
+            <div style="font-size: 0.8rem; color: var(--accent-emerald); font-weight: bold; margin-bottom: 0.25rem;">PRECISION RATE</div>
+            <code style="display: block; margin: 0.5rem 0; font-size: 0.95rem;">Precision = TP / (TP + FP) &times; 100%</code>
+            <p style="font-size: 0.75rem; color: var(--text-secondary);">Proportion of generated alerts that corresponded to real attacks rather than benign false alarms.</p>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-indigo);">
+            <div style="font-size: 0.8rem; color: #818cf8; font-weight: bold; margin-bottom: 0.25rem;">F1-SCORE (HARMONIC MEAN)</div>
+            <code style="display: block; margin: 0.5rem 0; font-size: 0.95rem;">F1 = 2 &times; (Precision &times; Recall) / (Precision + Recall)</code>
+            <p style="font-size: 0.75rem; color: var(--text-secondary);">Balanced metric measuring overall detection effectiveness while penalizing missed detections and false alarms.</p>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-amber);">
+            <div style="font-size: 0.8rem; color: var(--accent-amber); font-weight: bold; margin-bottom: 0.25rem;">DETECTION LATENCY</div>
+            <code style="display: block; margin: 0.5rem 0; font-size: 0.95rem;">Latency = Timestamp(Alert) - Timestamp(Event)</code>
+            <p style="font-size: 0.75rem; color: var(--text-secondary);">Time delay in milliseconds from request receipt to SIEM correlation and alert generation.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Detection Rules Knowledge Base Card -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h2 class="card-title" style="margin-bottom: 1rem;">Blue Team Detection Rule Set</h2>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Rule Identifier</th>
+                    <th>Detection Name</th>
+                    <th>Severity</th>
+                    <th>Category</th>
+                    <th>Detection Mechanism</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>RULE_BRUTE_FORCE_01</code></td>
+                    <td>High-Frequency Authentication Failure</td>
+                    <td><span class="badge badge-high">HIGH</span></td>
+                    <td>Credential Attack</td>
+                    <td>Rolling time-window threshold (&ge; 3 failed attempts in 60s per user/IP)</td>
+                </tr>
+                <tr>
+                    <td><code>RULE_UNAUTHORIZED_ACCESS_01</code></td>
+                    <td>Unauthorized Admin Access</td>
+                    <td><span class="badge badge-critical">CRITICAL</span></td>
+                    <td>Broken Access Control</td>
+                    <td>Status 401/403 or unauthenticated requests to administrative endpoints</td>
+                </tr>
+                <tr>
+                    <td><code>RULE_SQLI_DETECTED_01</code></td>
+                    <td>SQL Injection Syntax Anomaly</td>
+                    <td><span class="badge badge-critical">CRITICAL</span></td>
+                    <td>Injection</td>
+                    <td>Signature regex matching tautologies (<code>' OR 1=1</code>), UNION queries, comments</td>
+                </tr>
+                <tr>
+                    <td><code>RULE_XSS_INPUT_01</code></td>
+                    <td>Malicious Script & Tag Injection</td>
+                    <td><span class="badge badge-high">HIGH</span></td>
+                    <td>Cross-Site Scripting</td>
+                    <td>Inspection for <code>&lt;script&gt;</code>, event handlers (<code>onerror=</code>), SVG vectors</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Remediation & Retesting Verification Card -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h2 class="card-title" style="margin-bottom: 1rem;">Remediation & Retesting Defense Matrix</h2>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Vulnerability Exploit (Before)</th>
+                    <th>Engineered Defense Control</th>
+                    <th>Fortified Result (After)</th>
+                    <th>Mitigation Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Authentication Brute Force</td>
+                    <td>Unlimited dictionary guessing permitted</td>
+                    <td>Sliding window rate limiter & IP lockout</td>
+                    <td>HTTP 429 Too Many Requests enforced after 3 failures</td>
+                    <td><span class="badge badge-low">REMEDIATED</span></td>
+                </tr>
+                <tr>
+                    <td>Broken Access Control</td>
+                    <td>Forced browsing to <code>/admin/secrets</code></td>
+                    <td>Server-side cryptographic token validation & RBAC</td>
+                    <td>HTTP 403 Forbidden enforced without valid Bearer token</td>
+                    <td><span class="badge badge-low">REMEDIATED</span></td>
+                </tr>
+                <tr>
+                    <td>SQL Injection (SQLi)</td>
+                    <td>Raw query string concatenation leaks records</td>
+                    <td>Prepared statements & Parameterized query binding</td>
+                    <td>Payload treated as literal; SQLi filter blocks attack (HTTP 400)</td>
+                    <td><span class="badge badge-low">REMEDIATED</span></td>
+                </tr>
+                <tr>
+                    <td>Input Validation & XSS</td>
+                    <td>Unescaped script tags reflected and stored</td>
+                    <td>HTML entity output encoding & script tag filter</td>
+                    <td>Malicious tags neutralized / HTTP 400 Bad Request enforced</td>
+                    <td><span class="badge badge-low">REMEDIATED</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Live Empirical Experimental Results Card -->
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">
+            <span>📊</span> Empirical Experimental Evaluation Results
+        </h2>
+        <span class="card-badge" id="report-timestamp">Live Telemetry</span>
+    </div>
+    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
+        Aggregated ground-truth performance metrics computed from automated test batteries and attack simulations recorded in the SQLite audit telemetry database.
+    </p>
+    <div class="grid-kpi">
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-cyan);">
+            <div style="font-size: 0.7rem; color: var(--text-muted);">TEST BATTERIES RUN</div>
+            <div style="font-size: 1.3rem; font-weight: bold; color: #fff;" id="rep-runs">Loading...</div>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-rose);">
+            <div style="font-size: 0.7rem; color: var(--text-muted);">ATTACKS SIMULATED</div>
+            <div style="font-size: 1.3rem; font-weight: bold; color: #fff;" id="rep-attacks">Loading...</div>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-emerald);">
+            <div style="font-size: 0.7rem; color: var(--text-muted);">DETECTION RECALL (SENSITIVITY)</div>
+            <div style="font-size: 1.3rem; font-weight: bold; color: var(--accent-emerald);" id="rep-recall">Loading...</div>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-indigo);">
+            <div style="font-size: 0.7rem; color: var(--text-muted);">PRECISION RATE</div>
+            <div style="font-size: 1.3rem; font-weight: bold; color: #818cf8;" id="rep-precision">Loading...</div>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-amber);">
+            <div style="font-size: 0.7rem; color: var(--text-muted);">F1-SCORE HARMONIC MEAN</div>
+            <div style="font-size: 1.3rem; font-weight: bold; color: var(--accent-amber);" id="rep-f1">Loading...</div>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-blue);">
+            <div style="font-size: 0.7rem; color: var(--text-muted);">MEAN DETECTION LATENCY</div>
+            <div style="font-size: 1.3rem; font-weight: bold; color: var(--accent-blue);" id="rep-latency">Loading...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function loadReportMetrics() {
+    try {
+        const res = await fetch('/api/evaluations/overall');
+        const data = await res.json();
+        if (data.status === 'success') {
+            const m = data.metrics;
+            document.getElementById('rep-runs').innerText = m.total_runs || 0;
+            document.getElementById('rep-attacks').innerText = m.total_attacks || 0;
+            document.getElementById('rep-recall').innerText = `${m.detection_rate || 0}%`;
+            document.getElementById('rep-precision').innerText = `${m.precision_rate || 0}%`;
+            document.getElementById('rep-f1').innerText = (m.f1_score !== undefined) ? m.f1_score : '0.0';
+            document.getElementById('rep-latency').innerText = `${m.avg_latency_ms || 0} ms`;
+            document.getElementById('report-timestamp').innerText = `Live Evaluated: ${new Date().toLocaleTimeString()}`;
+        }
+    } catch (err) {
+        console.error('Error fetching report metrics', err);
+    }
+}
+document.addEventListener('DOMContentLoaded', loadReportMetrics);
+</script>
+{% endblock %}

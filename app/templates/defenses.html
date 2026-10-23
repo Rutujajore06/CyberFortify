@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Defensive Remediation & Retesting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <span>⚡</span> Defensive Remediation & Retesting Laboratory
+        </h1>
+        <p class="page-description">
+            Toggle target application defensive controls and run automated before-and-after retests to verify mitigation.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <button id="btn-run-retest" class="btn btn-primary" onclick="runRetestExperiment()">
+            <span>🔬 Run Before & After Retest</span>
+        </button>
+        <button class="btn btn-secondary" onclick="bulkToggle(true)">
+            <span>Enable All (Fortified)</span>
+        </button>
+        <button class="btn btn-secondary" onclick="bulkToggle(false)">
+            <span>Disable All (Baseline)</span>
+        </button>
+    </div>
+</div>
+
+<!-- Defensive Controls Switchboard Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;" id="defenses-grid">
+    <!-- Populated dynamically via defenses.js -->
+    <div class="card"><div style="color: var(--text-muted); text-align: center;">Loading defensive controls...</div></div>
+</div>
+
+<!-- Retesting Experiment Comparative Panel -->
+<div class="card" id="retest-results-panel" style="margin-bottom: 2rem;">
+    <div class="card-header-flex">
+        <h2 class="card-title">
+            <span>📊</span> Before-and-After Retesting Comparison Report
+        </h2>
+        <span class="badge badge-low" id="retest-verdict-badge">Retest Ready</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="grid-retest-columns">
+        <!-- Baseline Column -->
+        <div style="background: rgba(244, 63, 94, 0.05); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: var(--radius-md); padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="color: #fb7185; font-size: 1.1rem;">1. BEFORE Remediation (Baseline)</h3>
+                <span class="badge badge-critical">Defenses Disabled</span>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+                Adversary simulation conducted against unmitigated, vulnerable target application.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">ATTACK ATTEMPTS</div>
+                    <div style="font-size: 1.5rem; color: #fff; font-weight: bold;" id="base-attacks">-</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">ACTIVELY BLOCKED</div>
+                    <div style="font-size: 1.5rem; color: #fb7185; font-weight: bold;" id="base-blocked">-</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">DEFENSE BLOCK RATE</div>
+                    <div style="font-size: 1.5rem; color: #fb7185; font-weight: bold;" id="base-rate">0%</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">SYSTEM COMPROMISES</div>
+                    <div style="font-size: 1.5rem; color: #f43f5e; font-weight: bold;" id="base-breaches">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fortified Column -->
+        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-md); padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="color: var(--accent-emerald); font-size: 1.1rem;">2. AFTER Remediation (Fortified)</h3>
+                <span class="badge badge-low">Defenses Active</span>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+                Exact same adversary scenarios repeated against fortified target with active controls.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">ATTACK ATTEMPTS</div>
+                    <div style="font-size: 1.5rem; color: #fff; font-weight: bold;" id="fort-attacks">-</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">ACTIVELY BLOCKED</div>
+                    <div style="font-size: 1.5rem; color: var(--accent-emerald); font-weight: bold;" id="fort-blocked">-</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">DEFENSE BLOCK RATE</div>
+                    <div style="font-size: 1.5rem; color: var(--accent-emerald); font-weight: bold;" id="fort-rate">0%</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">SECURITY IMPROVEMENT</div>
+                    <div style="font-size: 1.5rem; color: var(--accent-cyan); font-weight: bold;" id="fort-improvement">+0%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparative Remediation Breakdown -->
+    <h3 style="color: #fff; font-size: 1rem; margin-bottom: 0.75rem;">Verified Defensive Remediations</h3>
+    <div id="remediations-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <!-- Populated via defenses.js -->
+        <div style="color: var(--text-muted); font-size: 0.85rem;">Run the retest experiment to view automated verification diffs.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/defenses.js') }}"></script>
+{% endblock %}

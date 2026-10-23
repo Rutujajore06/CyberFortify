@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block title %}Executive Defense Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <span>🛡️</span> Security Operations & Evaluation Dashboard
+        </h1>
+        <p class="page-description">
+            Live telemetry, automated adversary simulation metrics, and Blue Team detection efficacy.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="/assessment" class="btn btn-primary">
+            <span>🔍 Security Assessment</span>
+        </a>
+        <button id="btn-quick-battery" class="btn btn-secondary" onclick="runFullBattery()">
+            <span>⚡ Run Test Battery</span>
+        </button>
+    </div>
+</div>
+
+<!-- Website Security Assessment Section (Confined Demo Scope) -->
+<div class="card" style="margin-bottom: 2rem; border-color: rgba(0, 242, 254, 0.35); background: linear-gradient(180deg, rgba(17, 28, 51, 0.95), rgba(13, 21, 39, 0.95));">
+    <div class="card-header-flex" style="margin-bottom: 0.75rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+                <h2 class="card-title" style="font-size: 1.15rem;">
+                    <span>🔍</span> Website Security Assessment
+                </h2>
+                <span class="badge badge-low" style="letter-spacing: 0.05em; font-weight: 700;">SCOPE: FORTRESS BANK DEMO</span>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+                Target scope is strictly confined to the local Fortress Bank demo application (<code>http://127.0.0.1:5000</code>). External scanning is strictly blocked server-side.
+            </p>
+        </div>
+        <a href="/assessment" class="btn btn-secondary btn-sm">Full Assessment Console &rarr;</a>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 0.75rem;">
+        <div style="flex: 1; min-width: 280px;">
+            <input 
+                type="text" 
+                id="dashboard-target-url" 
+                class="form-control" 
+                style="width: 100%; font-family: var(--font-mono); font-size: 0.875rem;" 
+                value="http://127.0.0.1:5000" 
+                placeholder="http://127.0.0.1:5000"
+                aria-label="Dashboard Demo Target URL"
+            >
+        </div>
+        <button id="btn-dashboard-assess" class="btn btn-primary" onclick="runDashboardQuickAssessment()">
+            <span>🛡️ Assess Demo</span>
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('dashboard-target-url').value = 'http://127.0.0.1:5000'">
+            Reset URL
+        </button>
+    </div>
+    
+    <div id="dashboard-assessment-feedback" style="margin-top: 0.75rem; display: none;"></div>
+</div>
+
+<!-- Primary KPI Metrics Grid -->
+<div class="grid-kpi">
+    <div class="card">
+        <div class="kpi-icon" style="color: var(--accent-cyan);">🚀</div>
+        <div class="kpi-title">Simulations Executed</div>
+        <div class="kpi-value" id="kpi-runs">0</div>
+        <div class="kpi-subtext">Total Red Team test runs</div>
+    </div>
+    <div class="card">
+        <div class="kpi-icon" style="color: var(--accent-rose);">⚔️</div>
+        <div class="kpi-title">Attacks Simulated</div>
+        <div class="kpi-value" id="kpi-attacks">0</div>
+        <div class="kpi-subtext">Offensive test probes sent</div>
+    </div>
+    <div class="card">
+        <div class="kpi-icon" style="color: var(--accent-amber);">🚨</div>
+        <div class="kpi-title">Alerts Triggered</div>
+        <div class="kpi-value" id="kpi-alerts">0</div>
+        <div class="kpi-subtext">Blue Team IDS detections</div>
+    </div>
+    <div class="card">
+        <div class="kpi-icon" style="color: var(--accent-emerald);">🎯</div>
+        <div class="kpi-title">Detection Recall</div>
+        <div class="kpi-value" id="kpi-detection-rate">0%</div>
+        <div class="kpi-subtext">Ground-truth accuracy (TP/(TP+FN))</div>
+    </div>
+    <div class="card">
+        <div class="kpi-icon" style="color: var(--accent-blue);">⚡</div>
+        <div class="kpi-title">Mean Latency</div>
+        <div class="kpi-value" id="kpi-latency">0 ms</div>
+        <div class="kpi-subtext">Avg event-to-alert delay</div>
+    </div>
+</div>
+
+<!-- Live Chart Visualizations -->
+<div class="grid-charts">
+    <div class="card">
+        <div class="card-header-flex">
+            <h2 class="card-title">
+                <span>📊</span> Scenario Detection Coverage (Attacks vs Detected)
+            </h2>
+            <span class="card-badge">Live Blue Team Telemetry</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="scenarioChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header-flex">
+            <h2 class="card-title">
+                <span>🎯</span> Alert Severity Triage
+            </h2>
+            <span class="card-badge">Active Alerts</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="severityChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Alerts & Runs Tables -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;" class="grid-tables">
+    <!-- Recent Alerts -->
+    <div class="card">
+        <div class="card-header-flex">
+            <h2 class="card-title">
+                <span>🚨</span> Recent Blue Team Alerts
+            </h2>
+            <a href="/alerts" class="btn btn-secondary btn-sm">View All Alerts &rarr;</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table" id="table-recent-alerts">
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Rule ID</th>
+                        <th>Latency</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-alerts-body">
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading recent alerts...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Simulation Runs -->
+    <div class="card">
+        <div class="card-header-flex">
+            <h2 class="card-title">
+                <span>⚔️</span> Recent Simulation Runs
+            </h2>
+            <a href="/simulations" class="btn btn-secondary btn-sm">Launch Attack &rarr;</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table" id="table-recent-runs">
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Requests</th>
+                        <th>Blocked</th>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-runs-body">
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading simulation runs...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

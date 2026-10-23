@@ -80,12 +80,12 @@ class TestPhase1(unittest.TestCase):
         # In vulnerable mode, all users returned
         self.assertGreater(data['results_count'], 1)
 
-        # Fortified mode: Parameterized queries treats payload literally
+        # Fortified mode: Parameterized queries / SQLi guard treats payload literally or blocks it
         set_defense_state('parameterized_queries', True)
         res_fortified = self.client.get("/api/target/search?q=' OR 1=1 --")
-        self.assertEqual(res_fortified.status_code, 200)
+        self.assertIn(res_fortified.status_code, (200, 400))
         data_fortified = json.loads(res_fortified.data)
-        self.assertEqual(data_fortified['results_count'], 0)
+        self.assertEqual(data_fortified.get('results_count', 0), 0)
 
         # Reset
         set_defense_state('parameterized_queries', False)

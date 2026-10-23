@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Red Team Simulation Console{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <span>⚔️</span> Red Team Adversary Simulation Console
+        </h1>
+        <p class="page-description">
+            Execute controlled offensive security scenarios against the Fortress target demo application.
+        </p>
+    </div>
+    <div>
+        <button class="btn btn-primary" onclick="launchScenario('all')">
+            <span>⚡ Launch Full Attack Battery</span>
+        </button>
+    </div>
+</div>
+
+<!-- Scenario Launch Cards Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+    <!-- 1. Brute Force -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+            <span class="badge badge-high">Scenario 1</span>
+            <span style="font-size: 1.5rem;">🔑</span>
+        </div>
+        <h3 style="color: #fff; margin-bottom: 0.5rem; font-size: 1.1rem;">Authentication Brute Force</h3>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
+            Rapid credential stuffing and dictionary attack against target login endpoint (5 bursts).
+        </p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="launchScenario('brute_force')">
+            Run Brute Force &rarr;
+        </button>
+    </div>
+
+    <!-- 2. Broken Access Control -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+            <span class="badge badge-critical">Scenario 2</span>
+            <span style="font-size: 1.5rem;">🚪</span>
+        </div>
+        <h3 style="color: #fff; margin-bottom: 0.5rem; font-size: 1.1rem;">Broken Access Control</h3>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
+            Forced browsing to administrative treasury secrets without valid Bearer authorization.
+        </p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="launchScenario('unauthorized_access')">
+            Run Broken Access &rarr;
+        </button>
+    </div>
+
+    <!-- 3. SQL Injection -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+            <span class="badge badge-critical">Scenario 3</span>
+            <span style="font-size: 1.5rem;">💉</span>
+        </div>
+        <h3 style="color: #fff; margin-bottom: 0.5rem; font-size: 1.1rem;">SQL Injection (SQLi)</h3>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
+            Harmless tautology probes (<code>' OR 1=1 --</code>) and UNION queries against customer search.
+        </p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="launchScenario('sql_injection')">
+            Run SQL Injection &rarr;
+        </button>
+    </div>
+
+    <!-- 4. Input Validation & XSS -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+            <span class="badge badge-high">Scenario 4</span>
+            <span style="font-size: 1.5rem;">⚡</span>
+        </div>
+        <h3 style="color: #fff; margin-bottom: 0.5rem; font-size: 1.1rem;">Input Validation & XSS</h3>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
+            Safe non-destructive script tags and SVG event handlers against customer feedback form.
+        </p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="launchScenario('input_validation')">
+            Run Input Validation &rarr;
+        </button>
+    </div>
+
+    <!-- 5. Benign Baseline -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+            <span class="badge badge-benign">Baseline</span>
+            <span style="font-size: 1.5rem;">👤</span>
+        </div>
+        <h3 style="color: #fff; margin-bottom: 0.5rem; font-size: 1.1rem;">Benign User Baseline</h3>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
+            Legitimate browsing, authenticated logins, and clean queries (Negative control for False Positives).
+        </p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="launchScenario('benign')">
+            Run Benign Baseline &rarr;
+        </button>
+    </div>
+</div>
+
+<!-- Terminal Live Feed -->
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header-flex">
+        <h2 class="card-title">
+            <span>💻</span> Adversary Simulation Terminal Feed
+        </h2>
+        <button class="btn btn-secondary btn-sm" onclick="clearTerminal()">Clear Console</button>
+    </div>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <span class="terminal-btn red"></span>
+            <span class="terminal-btn yellow"></span>
+            <span class="terminal-btn green"></span>
+            <span class="terminal-title">cyberfortify@red-team-runner:~#</span>
+        </div>
+        <div class="terminal-body" id="simulation-console">
+[READY] CyberFortify Red Team Simulation Engine initialized.
+Target Environment: Fortress Demo Banking Portal (127.0.0.1:5000)
+Select a scenario above to begin offensive testing.
+        </div>
+    </div>
+</div>
+
+<!-- Simulation Runs History -->
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">
+            <span>📜</span> Simulation Run History & Ground Truth
+        </h2>
+        <span class="card-badge" id="history-count">Loading runs...</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Run UUID</th>
+                    <th>Scenario</th>
+                    <th>Total Requests</th>
+                    <th>Attacks</th>
+                    <th>Blocked by Defense</th>
+                    <th>Timestamp</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="simulations-history-body">
+                <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading simulation runs...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/simulations.js') }}"></script>
+{% endblock %}

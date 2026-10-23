@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Security Audit Logs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <span>📜</span> Security Audit Log Explorer
+        </h1>
+        <p class="page-description">
+            Complete telemetry history of all HTTP requests processed by the Fortress Demo Target application.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a id="btn-export-csv" href="/api/events/export/csv" class="btn btn-primary" download>
+            <span>📥 Export Logs (CSV)</span>
+        </a>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+    <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 220px;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">SEARCH PAYLOAD / ENDPOINT</label>
+            <input type="text" id="log-search" class="form-control" style="width: 100%;" placeholder="e.g. admin, /login, script, 1=1..." onkeydown="if(event.key==='Enter') loadEvents(0)">
+        </div>
+
+        <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">SCENARIO</label>
+            <select id="log-scenario" class="form-control" onchange="loadEvents(0)">
+                <option value="">All Scenarios</option>
+                <option value="brute_force">Brute Force</option>
+                <option value="unauthorized_access">Broken Access Control</option>
+                <option value="sql_injection">SQL Injection</option>
+                <option value="input_validation">Input Validation</option>
+                <option value="benign">Benign Baseline</option>
+            </select>
+        </div>
+
+        <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">CLASSIFICATION</label>
+            <select id="log-classification" class="form-control" onchange="loadEvents(0)">
+                <option value="">All Traffic</option>
+                <option value="1">Attacks Only (Ground Truth)</option>
+                <option value="0">Benign Traffic Only</option>
+            </select>
+        </div>
+
+        <button class="btn btn-secondary" onclick="loadEvents(0)">Search</button>
+        <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+
+        <div style="margin-left: auto;">
+            <span class="card-badge" id="total-events-badge">0 Events Total</span>
+        </div>
+    </div>
+</div>
+
+<!-- Events Table -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Timestamp</th>
+                    <th>IP Address</th>
+                    <th>Method</th>
+                    <th>Endpoint</th>
+                    <th>Status</th>
+                    <th>Classification</th>
+                    <th>Scenario</th>
+                    <th>Payload Preview</th>
+                </tr>
+            </thead>
+            <tbody id="events-table-body">
+                <tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Loading audit logs...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination Controls -->
+<div style="display: flex; justify-content: space-between; align-items: center;">
+    <span style="color: var(--text-muted); font-size: 0.85rem;" id="pagination-info">Showing page 1</span>
+    <div style="display: flex; gap: 0.5rem;">
+        <button id="btn-prev-page" class="btn btn-secondary btn-sm" onclick="changePage(-1)" disabled>&larr; Previous</button>
+        <button id="btn-next-page" class="btn btn-secondary btn-sm" onclick="changePage(1)">Next &rarr;</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/logs.js') }}"></script>
+{% endblock %}

@@ -70,6 +70,12 @@ CyberFortify unites offensive simulation and defensive evaluation within a unifi
      - Context-aware input sanitization and HTML entity escaping.
    - **Before vs After Retesting**: Runs baseline vs fortified tests side-by-side to verify vulnerability mitigation.
 
+4. **Website Security Assessment Engine**:
+   - **Confined Demo Scope**: Strictly restricted server-side to the local built-in Fortress Bank demo application (`http://127.0.0.1:5000` / `localhost:5000`).
+   - **Server-Side Scope Validation**: Rejects unexpected hosts (external websites), unexpected ports, credentials in URLs, unsupported schemes, and path traversal.
+   - **Safe & Non-Intrusive Checks**: No arbitrary server requests, brute force, or exploitation. Evaluates defensive control states in SQLite, response headers (`X-Content-Type-Options`, `X-Frame-Options`, `Content-Security-Policy`), audit telemetry count, and runtime environment.
+   - **Persistent SQLite Audit Trail**: Stores overall status (`FORTIFIED`, `PARTIALLY_FORTIFIED`, `VULNERABLE`), check counts, observed evidence, and remediation advice.
+
 ---
 
 ## 🛠️ Technology Stack
@@ -108,13 +114,21 @@ CyberFortify unites offensive simulation and defensive evaluation within a unifi
 4. **Run automated test suite**:
    ```bash
    python -m unittest discover tests
+   # Or run only the security assessment tests:
+   python -m unittest tests.test_assessment
    ```
 
 5. **Start CyberFortify server**:
    ```bash
    python run.py
    ```
-   Open your browser at `http://127.0.0.1:5000/`.
+   Open your browser at:
+   - Dashboard: `http://127.0.0.1:5000/`
+   - Website Security Assessment: `http://127.0.0.1:5000/assessment`
+   - Red Team Simulation: `http://127.0.0.1:5000/simulations`
+   - Blue Team Alerts: `http://127.0.0.1:5000/alerts`
+   - Remediation Lab: `http://127.0.0.1:5000/defenses`
+   - Evaluation Report: `http://127.0.0.1:5000/report`
 
 ---
 

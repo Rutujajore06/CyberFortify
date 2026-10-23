@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Blue Team Alert Triage{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <span>🛡️</span> Blue Team SIEM & Alert Triage Center
+        </h1>
+        <p class="page-description">
+            Rule-based detection events correlated from real application logs with latency telemetry.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <button class="btn btn-secondary" onclick="loadAlerts()">
+            <span>🔄 Refresh Alerts</span>
+        </button>
+    </div>
+</div>
+
+<!-- Severity Distribution Cards -->
+<div class="grid-kpi" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="card" onclick="filterBySeverity('CRITICAL')" style="cursor: pointer;">
+        <div class="kpi-title" style="color: var(--accent-rose);">CRITICAL</div>
+        <div class="kpi-value" id="count-critical" style="color: var(--accent-rose);">0</div>
+        <div class="kpi-subtext">Immediate action required</div>
+    </div>
+    <div class="card" onclick="filterBySeverity('HIGH')" style="cursor: pointer;">
+        <div class="kpi-title" style="color: var(--accent-amber);">HIGH</div>
+        <div class="kpi-value" id="count-high" style="color: var(--accent-amber);">0</div>
+        <div class="kpi-subtext">Active attack patterns</div>
+    </div>
+    <div class="card" onclick="filterBySeverity('MEDIUM')" style="cursor: pointer;">
+        <div class="kpi-title" style="color: #818cf8;">MEDIUM</div>
+        <div class="kpi-value" id="count-medium" style="color: #818cf8;">0</div>
+        <div class="kpi-subtext">Suspicious anomaly</div>
+    </div>
+    <div class="card" onclick="filterBySeverity('LOW')" style="cursor: pointer;">
+        <div class="kpi-title" style="color: var(--accent-emerald);">LOW</div>
+        <div class="kpi-value" id="count-low" style="color: var(--accent-emerald);">0</div>
+        <div class="kpi-subtext">Informational notice</div>
+    </div>
+</div>
+
+<!-- Alert Filters Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem 1.5rem;">
+    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">SEVERITY</label>
+            <select id="filter-severity" class="form-control" onchange="loadAlerts()">
+                <option value="">All Severities</option>
+                <option value="CRITICAL">CRITICAL</option>
+                <option value="HIGH">HIGH</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="LOW">LOW</option>
+            </select>
+        </div>
+
+        <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">STATUS</label>
+            <select id="filter-status" class="form-control" onchange="loadAlerts()">
+                <option value="">All Statuses</option>
+                <option value="NEW">NEW</option>
+                <option value="ACKNOWLEDGED">ACKNOWLEDGED</option>
+                <option value="RESOLVED">RESOLVED</option>
+            </select>
+        </div>
+
+        <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">DETECTION RULE</label>
+            <select id="filter-rule" class="form-control" onchange="loadAlerts()">
+                <option value="">All Detection Rules</option>
+                <option value="RULE_BRUTE_FORCE_01">RULE_BRUTE_FORCE_01 (Brute Force)</option>
+                <option value="RULE_UNAUTHORIZED_ACCESS_01">RULE_UNAUTHORIZED_ACCESS_01 (Auth Bypass)</option>
+                <option value="RULE_SQLI_DETECTED_01">RULE_SQLI_DETECTED_01 (SQL Injection)</option>
+                <option value="RULE_XSS_INPUT_01">RULE_XSS_INPUT_01 (XSS / Input Validation)</option>
+            </select>
+        </div>
+
+        <div style="margin-left: auto; align-self: flex-end;">
+            <span class="card-badge" id="alerts-count-badge">0 Alerts Found</span>
+        </div>
+    </div>
+</div>
+
+<!-- Alerts Table -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Rule Identifier</th>
+                    <th>Detection Name</th>
+                    <th>Endpoint</th>
+                    <th>Detection Latency</th>
+                    <th>Status</th>
+                    <th>Timestamp</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="alerts-table-body">
+                <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Loading alerts...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
+{% endblock %}

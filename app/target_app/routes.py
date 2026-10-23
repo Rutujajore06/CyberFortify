@@ -117,7 +117,20 @@ def target_search():
 
     try:
         if is_parameterized_active():
-            # Fortified Defense: Parameterized query prevents SQL injection
+            # Fortified Defense: Parameterized query & SQLi filter
+            from app.blue_team.rules import SQLI_PATTERNS
+            is_sqli = any(p.search(query) for p in SQLI_PATTERNS)
+            if is_sqli:
+                conn.close()
+                log_target_request(status_code=400, custom_payload=f"q={query}&blocked=sqli_guard")
+                return jsonify({
+                    'status': 'blocked',
+                    'error': 'Defensive Control: SQL injection pattern detected and neutralized.',
+                    'query': query,
+                    'results_count': 0,
+                    'results': []
+                }), 400
+
             cursor.execute(
                 "SELECT id, username, role, account_number FROM target_users WHERE username LIKE ?",
                 (f"%{query}%",)

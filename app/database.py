@@ -120,6 +120,39 @@ def init_db():
     )
     ''')
 
+    # 8. Website Security Assessments (Fortress Demo Safe Scope)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS assessments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        assessment_uuid TEXT UNIQUE NOT NULL,
+        timestamp TEXT NOT NULL,
+        target_url TEXT NOT NULL,
+        scope_target TEXT NOT NULL,
+        overall_status TEXT NOT NULL,
+        total_checks INTEGER DEFAULT 0,
+        passed_checks INTEGER DEFAULT 0,
+        failed_checks INTEGER DEFAULT 0,
+        findings_json TEXT NOT NULL,
+        notes TEXT
+    )
+    ''')
+
+    # 9. Granular Assessment Findings Evidence & Remediation
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS assessment_findings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        assessment_uuid TEXT NOT NULL,
+        check_key TEXT NOT NULL,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        status TEXT NOT NULL,
+        evidence TEXT NOT NULL,
+        remediation TEXT NOT NULL,
+        FOREIGN KEY (assessment_uuid) REFERENCES assessments(assessment_uuid)
+    )
+    ''')
+
     conn.commit()
 
     # Seed Default Defenses if not present
