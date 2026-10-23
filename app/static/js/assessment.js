@@ -2,6 +2,7 @@
 
 let currentAssessmentData = null;
 let currentFilter = 'all';
+let configuredDemoOrigin = 'http://127.0.0.1:5000';
 
 document.addEventListener('DOMContentLoaded', () => {
     loadScopeConfig();
@@ -12,14 +13,18 @@ async function loadScopeConfig() {
     try {
         const res = await fetch('/api/assessment/config');
         const data = await res.json();
-        if (data.status === 'success') {
+        if (data.status === 'success' && data.demo_origin) {
+            configuredDemoOrigin = data.demo_origin;
             const originEl = document.getElementById('scope-target-origin');
             if (originEl) {
-                originEl.innerText = data.demo_origin;
+                originEl.innerText = configuredDemoOrigin;
             }
             const inputEl = document.getElementById('target-url-input');
-            if (inputEl && !inputEl.value) {
-                inputEl.value = data.demo_origin;
+            if (inputEl) {
+                inputEl.placeholder = configuredDemoOrigin;
+                if (!inputEl.value || !inputEl.value.trim()) {
+                    inputEl.value = configuredDemoOrigin;
+                }
             }
         }
     } catch (err) {
@@ -85,7 +90,7 @@ async function triggerAssessment() {
     errorBox.style.display = 'none';
 
     if (!rawUrl) {
-        showScopeError('Target URL cannot be empty. Please enter the Fortress Bank demo URL (e.g., http://127.0.0.1:5000).');
+        showScopeError(`Target URL cannot be empty. Please enter the Fortress Bank demo URL (e.g., ${configuredDemoOrigin}).`);
         return;
     }
 
@@ -133,7 +138,7 @@ function showScopeError(msg) {
 }
 
 function resetDemoUrl() {
-    document.getElementById('target-url-input').value = 'http://127.0.0.1:5000';
+    document.getElementById('target-url-input').value = configuredDemoOrigin;
     document.getElementById('scope-error-container').style.display = 'none';
 }
 

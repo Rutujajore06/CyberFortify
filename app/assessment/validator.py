@@ -1,5 +1,11 @@
 import urllib.parse
+from flask import has_app_context, current_app
 from app.config import Config
+
+def _get_config_val(key, default=None):
+    if has_app_context() and key in current_app.config:
+        return current_app.config[key]
+    return getattr(Config, key, default)
 
 def validate_target_url(raw_url):
     """
@@ -8,10 +14,10 @@ def validate_target_url(raw_url):
     Enforcement rules:
     1. Rejects empty, whitespace-only, or excessively long strings.
     2. Rejects malformed or unparseable URLs.
-    3. Rejects unsupported schemes (only Config.DEMO_ALLOWED_SCHEMES, e.g. http).
+    3. Rejects unsupported schemes (only DEMO_ALLOWED_SCHEMES, e.g. http).
     4. Rejects credentials embedded in the URL (userinfo: username / password).
-    5. Rejects unexpected hosts (only Config.DEMO_ALLOWED_HOSTS, e.g. 127.0.0.1, localhost).
-    6. Rejects unexpected ports (must match Config.DEMO_ALLOWED_PORT).
+    5. Rejects unexpected hosts (only DEMO_ALLOWED_HOSTS, e.g. 127.0.0.1, localhost).
+    6. Rejects unexpected ports (must match DEMO_ALLOWED_PORTS, e.g. 5000).
     7. Rejects path traversal and out-of-scope endpoint paths.
     
     Returns:
@@ -32,16 +38,25 @@ def validate_target_url(raw_url):
     except Exception as e:
         return False, f"Malformed URL syntax: {str(e)}", None
 
+    demo_port = _get_config_val('DEMO_PORT', _get_config_val('DEMO_ALLOWED_PORT', 5000))
+    allowed_schemes = _get_config_val('DEMO_ALLOWED_SCHEMES', {'http'})
+    allowed_hosts = _get_config_val('DEMO_ALLOWED_HOSTS', {'127.0.0.1', 'localhost'})
+    raw_allowed_ports = _get_config_val('DEMO_ALLOWED_PORTS', {_get_config_val('DEMO_ALLOWED_PORT', demo_port)})
+    if isinstance(raw_allowed_ports, (int, str)):
+        allowed_ports = {int(raw_allowed_ports)}
+    else:
+        allowed_ports = {int(p) for p in raw_allowed_ports}
+
     # 1. Scheme Check
     scheme = (parsed.scheme or '').lower()
     if not scheme:
         return False, (
             "Missing URL scheme. Only HTTP is supported for the local demo "
-            f"(e.g., http://127.0.0.1:{Config.DEMO_ALLOWED_PORT})."
+            f"(e.g., http://127.0.0.1:{demo_port})."
         ), None
 
-    if scheme not in Config.DEMO_ALLOWED_SCHEMES:
-        allowed = ', '.join(sorted(Config.DEMO_ALLOWED_SCHEMES))
+    if scheme not in allowed_schemes:
+        allowed = ', '.join(sorted(allowed_schemes))
         return False, (
             f"Unsupported URL scheme '{scheme}'. Only [{allowed}] is permitted for the local Fortress Bank demo."
         ), None
@@ -55,25 +70,26 @@ def validate_target_url(raw_url):
     if not hostname:
         return False, "Invalid URL: Missing target hostname.", None
 
-    if hostname not in Config.DEMO_ALLOWED_HOSTS:
-        allowed_hosts = ', '.join(sorted(Config.DEMO_ALLOWED_HOSTS))
+    if hostname not in allowed_hosts:
+        allowed_hosts_str = ', '.join(sorted(allowed_hosts))
         return False, (
             f"Out-of-scope host '{hostname}'. Website Security Assessment is strictly restricted to the "
-            f"Fortress Bank demo application ({allowed_hosts}). External targets are strictly prohibited."
+            f"Fortress Bank demo application ({allowed_hosts_str}). External targets are strictly prohibited."
         ), None
 
     # 4. Port Check
     port = parsed.port
     if port is None:
-        if Config.DEMO_ALLOWED_PORT != 80:
+        if 80 not in allowed_ports:
             return False, (
-                f"Missing or mismatched port. The Fortress Bank demo runs on port {Config.DEMO_ALLOWED_PORT}. "
-                f"Please specify http://{hostname}:{Config.DEMO_ALLOWED_PORT}"
+                f"Missing or mismatched port. The Fortress Bank demo runs on port {demo_port}. "
+                f"Please specify http://{hostname}:{demo_port}"
             ), None
         port = 80
-    elif port != Config.DEMO_ALLOWED_PORT:
+    elif port not in allowed_ports:
+        ports_str = '/'.join(str(p) for p in sorted(allowed_ports))
         return False, (
-            f"Unexpected port '{port}'. Assessment is strictly restricted to demo port {Config.DEMO_ALLOWED_PORT}."
+            f"Unexpected port '{port}'. Assessment is strictly restricted to demo port {ports_str}."
         ), None
 
     # 5. Path Check

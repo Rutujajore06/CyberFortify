@@ -13,8 +13,13 @@ class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', os.environ.get('DEBUG', 'false')).lower() in ('1', 'true', 'yes')
 
     # Configured Demo Scope for Website Security Assessment (Fortress Bank Demo)
+    # The internal Fortress Bank demo port is decoupled from the dynamic hosting platform web-service PORT (e.g. Render PORT=10000)
+    DEMO_PORT = int(os.environ.get('DEMO_PORT', 5000))
+    DEMO_HOST = os.environ.get('DEMO_HOST', '127.0.0.1')
     DEMO_ALLOWED_HOSTS = {'127.0.0.1', 'localhost'}
     DEMO_ALLOWED_SCHEMES = {'http'}
-    DEMO_ALLOWED_PORT = PORT
-    DEMO_ORIGIN = f"http://{HOST}:{PORT}"
+    # Allowed ports for demo assessment: allows configured internal demo port as well as web service PORT if distinct
+    DEMO_ALLOWED_PORT = DEMO_PORT
+    DEMO_ALLOWED_PORTS = {DEMO_PORT, PORT}
+    DEMO_ORIGIN = f"http://{DEMO_HOST}:{DEMO_PORT}"
     REQUIRE_AUTH = os.environ.get('REQUIRE_AUTH', 'false').lower() in ('1', 'true', 'yes')

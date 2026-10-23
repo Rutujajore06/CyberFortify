@@ -48,14 +48,26 @@ def check_backend_auth():
 def get_assessment_scope_config():
     """Returns the configured demo scope and target constraints."""
     from app.config import Config
+    demo_port = current_app.config.get('DEMO_PORT', Config.DEMO_PORT)
+    demo_host = current_app.config.get('DEMO_HOST', Config.DEMO_HOST)
+    demo_origin = current_app.config.get('DEMO_ORIGIN', f"http://{demo_host}:{demo_port}")
+    allowed_hosts = current_app.config.get('DEMO_ALLOWED_HOSTS', Config.DEMO_ALLOWED_HOSTS)
+    allowed_schemes = current_app.config.get('DEMO_ALLOWED_SCHEMES', Config.DEMO_ALLOWED_SCHEMES)
+    raw_allowed_ports = current_app.config.get('DEMO_ALLOWED_PORTS', getattr(Config, 'DEMO_ALLOWED_PORTS', {demo_port}))
+    if isinstance(raw_allowed_ports, (int, str)):
+        allowed_ports = [int(raw_allowed_ports)]
+    else:
+        allowed_ports = sorted(list({int(p) for p in raw_allowed_ports}))
+
     return jsonify({
         'status': 'success',
         'target_name': Config.TARGET_APP_NAME,
-        'demo_origin': Config.DEMO_ORIGIN,
-        'demo_host': Config.HOST,
-        'demo_port': Config.DEMO_ALLOWED_PORT,
-        'allowed_hosts': sorted(list(Config.DEMO_ALLOWED_HOSTS)),
-        'allowed_schemes': sorted(list(Config.DEMO_ALLOWED_SCHEMES)),
+        'demo_origin': demo_origin,
+        'demo_host': demo_host,
+        'demo_port': demo_port,
+        'allowed_hosts': sorted(list(allowed_hosts)),
+        'allowed_ports': allowed_ports,
+        'allowed_schemes': sorted(list(allowed_schemes)),
         'scope_description': (
             "Strictly confined to the built-in Fortress Bank demo application. "
             "External URLs, arbitrary network requests, and active exploitation are blocked."

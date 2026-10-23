@@ -18,10 +18,11 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         data = json.loads(res.data)
         self.assertEqual(data['status'], 'success')
-        self.assertIn('demo_origin', data)
+        self.assertEqual(data['demo_origin'], Config.DEMO_ORIGIN)
         self.assertIn('127.0.0.1', data['allowed_hosts'])
         self.assertIn('localhost', data['allowed_hosts'])
-        self.assertEqual(data['demo_port'], Config.PORT)
+        self.assertEqual(data['demo_port'], Config.DEMO_PORT)
+        self.assertIn(Config.DEMO_PORT, data['allowed_ports'])
 
     def test_02_url_scope_validation_rejections(self):
         """Test server-side scope enforcement rejects out-of-scope or invalid targets."""
@@ -71,10 +72,10 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
     def test_03_url_scope_validation_valid_targets(self):
         """Test that valid Fortress Bank demo URLs are accepted and assessed."""
         valid_urls = [
-            f"http://127.0.0.1:{Config.PORT}",
-            f"http://localhost:{Config.PORT}",
-            f"http://127.0.0.1:{Config.PORT}/",
-            f"http://127.0.0.1:{Config.PORT}/api/target/status"
+            f"http://127.0.0.1:{Config.DEMO_PORT}",
+            f"http://localhost:{Config.DEMO_PORT}",
+            f"http://127.0.0.1:{Config.DEMO_PORT}/",
+            f"http://127.0.0.1:{Config.DEMO_PORT}/api/target/status"
         ]
 
         for test_url in valid_urls:
@@ -94,7 +95,7 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
         set_defense_state('parameterized_queries', False)
         set_defense_state('input_sanitization', False)
 
-        res = self.client.post('/api/assessment/run', json={'url': f"http://127.0.0.1:{Config.PORT}"})
+        res = self.client.post('/api/assessment/run', json={'url': f"http://127.0.0.1:{Config.DEMO_PORT}"})
         self.assertEqual(res.status_code, 200)
         data = json.loads(res.data)
         assessment = data['assessment']
@@ -138,7 +139,7 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
         set_defense_state('parameterized_queries', True)
         set_defense_state('input_sanitization', True)
 
-        res = self.client.post('/api/assessment/run', json={'url': f"http://127.0.0.1:{Config.PORT}"})
+        res = self.client.post('/api/assessment/run', json={'url': f"http://127.0.0.1:{Config.DEMO_PORT}"})
         self.assertEqual(res.status_code, 200)
         data = json.loads(res.data)
         assessment = data['assessment']
@@ -157,7 +158,7 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
 
     def test_06_assessment_history_and_details_endpoints(self):
         """Test history listing and detailed UUID retrieval endpoints."""
-        res_run = self.client.post('/api/assessment/run', json={'url': f"http://127.0.0.1:{Config.PORT}"})
+        res_run = self.client.post('/api/assessment/run', json={'url': f"http://127.0.0.1:{Config.DEMO_PORT}"})
         uuid = json.loads(res_run.data)['assessment']['assessment_uuid']
 
         # 1. Fetch history
@@ -184,7 +185,7 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
         res_auth = self.client.post(
             '/api/assessment/run',
             headers={'Authorization': DEMO_VALID_ADMIN_TOKEN},
-            json={'url': f"http://127.0.0.1:{Config.PORT}"}
+            json={'url': f"http://127.0.0.1:{Config.DEMO_PORT}"}
         )
         self.assertEqual(res_auth.status_code, 200)
 
@@ -192,7 +193,7 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
         res_invalid_auth = self.client.post(
             '/api/assessment/run',
             headers={'Authorization': 'Bearer forged-invalid-token-xyz'},
-            json={'url': f"http://127.0.0.1:{Config.PORT}"}
+            json={'url': f"http://127.0.0.1:{Config.DEMO_PORT}"}
         )
         self.assertEqual(res_invalid_auth.status_code, 401)
         data = json.loads(res_invalid_auth.data)
@@ -204,7 +205,7 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
              patch('requests.get') as mock_requests_get, \
              patch('requests.post') as mock_requests_post:
 
-            res = self.client.post('/api/assessment/run', json={'url': f"http://127.0.0.1:{Config.PORT}"})
+            res = self.client.post('/api/assessment/run', json={'url': f"http://127.0.0.1:{Config.DEMO_PORT}"})
             self.assertEqual(res.status_code, 200)
 
             # Ensure neither urllib nor requests made any external socket/HTTP connections
@@ -221,6 +222,101 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
         self.assertIn('Fortress Bank Demo Application', html)
         self.assertIn('target-url-input', html)
         self.assertIn('btn-run-assessment', html)
+
+    def test_10_port_mismatch_rejection(self):
+        """Test that ports other than the configured demo port are strictly rejected."""
+        unauthorized_ports = [8080, 8443, 9000, 3000, 22, 9999]
+        for port in unauthorized_ports:
+            with self.subTest(port=port):
+                res = self.client.post('/api/assessment/run', json={'url': f"http://127.0.0.1:{port}"})
+                self.assertEqual(res.status_code, 400)
+                data = json.loads(res.data)
+                self.assertEqual(data.get('error_type'), 'SCOPE_VIOLATION')
+                self.assertIn('unexpected port', data.get('message', '').lower())
+
+    def test_11_external_host_rejection(self):
+        """Test that external hosts and non-local IPs are strictly rejected without network calls."""
+        with patch('urllib.request.urlopen') as mock_urlopen, \
+             patch('requests.get') as mock_requests_get:
+            external_targets = [
+                'http://google.com',
+                'http://example.org:5000',
+                'http://192.168.1.1:5000',
+                'http://10.0.0.1:5000',
+                'http://169.254.169.254:5000',
+                'http://attacker-controlled.site:5000'
+            ]
+            for target_url in external_targets:
+                with self.subTest(url=target_url):
+                    res = self.client.post('/api/assessment/run', json={'url': target_url})
+                    self.assertEqual(res.status_code, 400)
+                    data = json.loads(res.data)
+                    self.assertEqual(data.get('error_type'), 'SCOPE_VIOLATION')
+                    self.assertIn('out-of-scope host', data.get('message', '').lower())
+
+            # Ensure no external network requests were attempted
+            mock_urlopen.assert_not_called()
+            mock_requests_get.assert_not_called()
+
+    def test_12_production_deployment_behavior(self):
+        """Test production deployment behavior when Render assigns a dynamic PORT (e.g. 10000)."""
+        class RenderProductionConfig(Config):
+            PORT = 10000
+            HOST = '0.0.0.0'
+            DEMO_PORT = 5000
+            DEMO_HOST = '127.0.0.1'
+            DEMO_ALLOWED_HOSTS = {'127.0.0.1', 'localhost'}
+            DEMO_ALLOWED_SCHEMES = {'http'}
+            DEMO_ALLOWED_PORT = DEMO_PORT
+            DEMO_ALLOWED_PORTS = {DEMO_PORT, PORT}
+            DEMO_ORIGIN = f"http://{DEMO_HOST}:{DEMO_PORT}"
+
+        prod_app = create_app(config_class=RenderProductionConfig)
+        prod_client = prod_app.test_client()
+
+        # 1. Verify scope config endpoint returns demo_origin with demo port 5000
+        config_res = prod_client.get('/api/assessment/config')
+        self.assertEqual(config_res.status_code, 200)
+        config_data = json.loads(config_res.data)
+        self.assertEqual(config_data['demo_origin'], 'http://127.0.0.1:5000')
+        self.assertEqual(config_data['demo_port'], 5000)
+        self.assertIn(5000, config_data['allowed_ports'])
+        self.assertIn(10000, config_data['allowed_ports'])
+
+        # 2. Verify pre-filled UI URL (http://127.0.0.1:5000) passes validation in production (NO port mismatch!)
+        with patch('urllib.request.urlopen') as mock_urlopen, \
+             patch('requests.get') as mock_requests_get:
+            res_prefilled = prod_client.post('/api/assessment/run', json={'url': 'http://127.0.0.1:5000'})
+            self.assertEqual(res_prefilled.status_code, 200)
+            data_prefilled = json.loads(res_prefilled.data)
+            self.assertEqual(data_prefilled['status'], 'success')
+            self.assertEqual(data_prefilled['assessment']['scope_target'], 'Fortress Bank Demo')
+
+            # 3. Verify localhost:5000 also accepted
+            res_localhost = prod_client.post('/api/assessment/run', json={'url': 'http://localhost:5000'})
+            self.assertEqual(res_localhost.status_code, 200)
+
+            # 4. Verify hosting platform port (10000) is also accepted as it maps to the same local app
+            res_service_port = prod_client.post('/api/assessment/run', json={'url': 'http://127.0.0.1:10000'})
+            self.assertEqual(res_service_port.status_code, 200)
+
+            # 5. Verify arbitrary unexpected port (e.g. 8080) is rejected with port mismatch
+            res_bad_port = prod_client.post('/api/assessment/run', json={'url': 'http://127.0.0.1:8080'})
+            self.assertEqual(res_bad_port.status_code, 400)
+            bad_data = json.loads(res_bad_port.data)
+            self.assertEqual(bad_data.get('error_type'), 'SCOPE_VIOLATION')
+            self.assertIn('unexpected port', bad_data.get('message', '').lower())
+
+            # 6. Verify external host is rejected even with production port
+            res_ext = prod_client.post('/api/assessment/run', json={'url': 'http://malicious.org:10000'})
+            self.assertEqual(res_ext.status_code, 400)
+            ext_data = json.loads(res_ext.data)
+            self.assertEqual(ext_data.get('error_type'), 'SCOPE_VIOLATION')
+            self.assertIn('out-of-scope host', ext_data.get('message', '').lower())
+
+            # 7. Confirm no external network requests were ever made
+            mock_urlopen.assert_not_called()
+            mock_requests_get.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()
