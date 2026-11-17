@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}Live Target Registration & Authorization{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <span>🌐</span> Live Target Registration &amp; Authorization
+        </h1>
+        <p class="page-description">
+            Register external websites for authorized, safe, non-invasive security assessment with strict ownership verification and administrator approval.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="/live-assessment" class="btn btn-primary">
+            <span>📡 Live Assessment Dashboard</span>
+        </a>
+        <a href="/assessment" class="btn btn-secondary">
+            <span>🏦 Fortress Demo Assessment</span>
+        </a>
+    </div>
+</div>
+
+<!-- Authorization Policy Banner -->
+<div class="card" style="margin-bottom: 1.75rem; border-color: rgba(0, 242, 254, 0.35); background: linear-gradient(180deg, rgba(13, 21, 39, 0.95), rgba(8, 13, 26, 0.95));">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                <span class="badge badge-low" style="font-weight: 700;">STRICT AUTHORIZATION POLICY</span>
+                <span style="color: var(--accent-cyan); font-weight: 600; font-size: 0.9rem;">Passive Non-Invasive Assessment Only</span>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.875rem; max-width: 900px; line-height: 1.6;">
+                <strong>Mandatory Workflow:</strong> (1) Register a public domain with explicit website-owner authorization &rarr;
+                (2) Complete domain ownership verification using the generated cryptographic token &rarr;
+                (3) Obtain Administrator Approval. Live scanning is <strong>strictly blocked</strong> until approved, automatically stops upon expiry,
+                and enforces SSRF, DNS-rebinding, private-IP, port, path, method, and rate-limit protections server-side.
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <div style="background: rgba(16, 185, 129, 0.08); padding: 0.6rem 0.9rem; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.25); text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--accent-emerald); text-transform: uppercase;">Approved</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: var(--accent-emerald);" id="stat-approved">0</div>
+            </div>
+            <div style="background: rgba(245, 158, 11, 0.08); padding: 0.6rem 0.9rem; border-radius: var(--radius-sm); border: 1px solid rgba(245, 158, 11, 0.25); text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--accent-amber); text-transform: uppercase;">Pending</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: var(--accent-amber);" id="stat-pending">0</div>
+            </div>
+            <div style="background: rgba(244, 63, 94, 0.08); padding: 0.6rem 0.9rem; border-radius: var(--radius-sm); border: 1px solid rgba(244, 63, 94, 0.25); text-align: center;">
+                <div style="font-size: 0.7rem; color: #fb7185; text-transform: uppercase;">Expired / Rejected</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #fb7185;" id="stat-inactive">0</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Target Registration Form -->
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header-flex">
+        <h2 class="card-title">
+            <span>📝</span> Register Website Target for Authorized Assessment
+        </h2>
+        <span class="card-badge">Phase 1 &bull; Explicit Consent Required</span>
+    </div>
+
+    <form id="register-target-form" onsubmit="registerTarget(event)">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+            <div>
+                <label class="form-label" for="reg-url" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Target Website URL *</label>
+                <input type="url" id="reg-url" class="form-control" required placeholder="https://example.com/"
+                       style="width:100%; font-family:var(--font-mono); padding:0.65rem 0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm);">
+                <small style="color:var(--text-muted); font-size:0.72rem;">Public HTTPS/HTTP domain only (ports 80/443). Localhost &amp; private IPs are blocked.</small>
+            </div>
+
+            <div>
+                <label class="form-label" for="reg-owner-name" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Website Owner / Authorized Contact *</label>
+                <input type="text" id="reg-owner-name" class="form-control" required placeholder="Jane Doe (Security Lead)"
+                       style="width:100%; padding:0.65rem 0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm);">
+            </div>
+
+            <div>
+                <label class="form-label" for="reg-owner-email" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Owner Contact Email *</label>
+                <input type="email" id="reg-owner-email" class="form-control" required placeholder="security@example.com"
+                       style="width:100%; padding:0.65rem 0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm);">
+            </div>
+
+            <div>
+                <label class="form-label" for="reg-verification-method" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Ownership Verification Method *</label>
+                <select id="reg-verification-method" class="form-control"
+                        style="width:100%; padding:0.65rem 0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm);">
+                    <option value="http_file">HTTP File (/.well-known/cyberfortify-verify.txt)</option>
+                    <option value="meta_tag">HTML Meta Tag (&lt;meta name="cyberfortify-verification"&gt;)</option>
+                    <option value="dns_txt">DNS TXT Record Verification</option>
+                    <option value="signed_attestation">Signed Owner Attestation Token</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="form-label" for="reg-paths" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Approved Testing Paths (comma-separated)</label>
+                <input type="text" id="reg-paths" class="form-control" value="/" placeholder="/, /about, /docs/*"
+                       style="width:100%; font-family:var(--font-mono); padding:0.65rem 0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm);">
+            </div>
+
+            <div>
+                <label class="form-label" for="reg-rate" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Max Request Rate (requests / minute, 1–60)</label>
+                <input type="number" id="reg-rate" class="form-control" min="1" max="60" value="10" required
+                       style="width:100%; padding:0.65rem 0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm);">
+            </div>
+
+            <div>
+                <label class="form-label" for="reg-start" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Testing Start Date (UTC) *</label>
+                <input type="datetime-local" id="reg-start" class="form-control" required
+                       style="width:100%; padding:0.65rem 0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm);">
+            </div>
+
+            <div>
+                <label class="form-label" for="reg-expiry" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Testing Expiry Date (UTC) *</label>
+                <input type="datetime-local" id="reg-expiry" class="form-control" required
+                       style="width:100%; padding:0.65rem 0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm);">
+            </div>
+
+            <div>
+                <label class="form-label" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Allowed Safe HTTP Methods *</label>
+                <div style="display:flex; gap:1rem; padding-top:0.45rem;">
+                    <label style="display:flex; align-items:center; gap:0.4rem; color:#fff; font-size:0.875rem; cursor:pointer;">
+                        <input type="checkbox" name="allowed_methods" value="GET" checked> GET
+                    </label>
+                    <label style="display:flex; align-items:center; gap:0.4rem; color:#fff; font-size:0.875rem; cursor:pointer;">
+                        <input type="checkbox" name="allowed_methods" value="HEAD" checked> HEAD
+                    </label>
+                    <label style="display:flex; align-items:center; gap:0.4rem; color:#fff; font-size:0.875rem; cursor:pointer;">
+                        <input type="checkbox" name="allowed_methods" value="OPTIONS"> OPTIONS
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explicit Website-Owner Authorization Consent -->
+        <div style="margin-top: 1.25rem; padding: 1rem; background: rgba(0, 242, 254, 0.05); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: var(--radius-sm);">
+            <label style="display: flex; align-items: flex-start; gap: 0.75rem; cursor: pointer;">
+                <input type="checkbox" id="reg-consent" required style="margin-top: 0.2rem; width: 16px; height: 16px;">
+                <span style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.5;">
+                    <strong>Explicit Website-Owner Authorization Confirmation (Required):</strong>
+                    I confirm that I am the authorized owner or have written authorization from the owner of this domain
+                    to conduct safe, non-invasive passive security configuration checks (TLS, HTTP headers, cookies, redirects)
+                    within the approved paths, rate limits, and validity window specified above.
+                </span>
+            </label>
+        </div>
+
+        <div id="reg-feedback" style="display:none; margin-top:1rem; padding:0.85rem 1rem; border-radius:var(--radius-sm); font-size:0.875rem;"></div>
+
+        <div style="margin-top: 1.25rem; display: flex; gap: 0.75rem;">
+            <button type="submit" id="btn-register-target" class="btn btn-primary">
+                <span>🛡️ Register Target &amp; Generate Verification Token</span>
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="resetRegistrationForm()">
+                <span>↺ Reset Form</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Registered Targets & Authorization Queue -->
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">
+            <span>🔐</span> Registered Targets &amp; Administrator Approval Queue
+        </h2>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <select id="status-filter" onchange="loadTargets()" style="padding:0.35rem 0.65rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm); font-size:0.8rem;">
+                <option value="">All Statuses</option>
+                <option value="PENDING_VERIFICATION">Pending Verification</option>
+                <option value="PENDING_APPROVAL">Pending Approval</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="EXPIRED">Expired</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="loadTargets()">↻ Refresh</button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Domain &amp; URL</th>
+                    <th>Owner Contact</th>
+                    <th>Auth Status</th>
+                    <th>Scope (Paths / Methods / Rate)</th>
+                    <th>Validity Window (UTC)</th>
+                    <th>Workflow Actions</th>
+                </tr>
+            </thead>
+            <tbody id="targets-table-body">
+                <tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Loading registered targets...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/live_targets.js') }}"></script>
+{% endblock %}

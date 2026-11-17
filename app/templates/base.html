@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="CyberFortify - Automated Red Team Simulation & Blue Team Defense Evaluation Platform">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}Dashboard{% endblock %} | CyberFortify</title>
     
     <!-- Google Fonts -->
@@ -37,7 +38,22 @@
             </li>
             <li>
                 <a href="/assessment" class="nav-link {% if active_page == 'assessment' %}active{% endif %}">
-                    <span>🔍</span> Security Assessment
+                    <span>🔍</span> Demo Assessment
+                </a>
+            </li>
+            <li>
+                <a href="/live-targets" class="nav-link {% if active_page == 'live_targets' %}active{% endif %}">
+                    <span>🌐</span> Live Targets
+                </a>
+            </li>
+            <li>
+                <a href="/live-assessment" class="nav-link {% if active_page == 'live_assessment' %}active{% endif %}">
+                    <span>📡</span> Live Assessment
+                </a>
+            </li>
+            <li>
+                <a href="/live-remediation" class="nav-link {% if active_page == 'live_remediation' %}active{% endif %}">
+                    <span>🛠️</span> Live Remediation
                 </a>
             </li>
             <li>
@@ -65,13 +81,28 @@
                     <span>📄</span> Evaluation Report
                 </a>
             </li>
+            <li>
+                <a href="/target" class="nav-link {% if active_page == 'target' %}active{% endif %}">
+                    <span>🏦</span> Fortress Bank
+                </a>
+            </li>
         </ul>
 
         <div class="nav-status">
-            <div class="status-badge" id="target-health-badge" title="Demo Target Bank Portal">
+            <a href="/target" class="status-badge" id="target-health-badge" title="Open Fortress Demo Banking Portal" style="text-decoration: none; cursor: pointer;">
                 <span class="status-dot"></span>
                 <span>Target: Active</span>
-            </div>
+            </a>
+            {% if current_user %}
+            <a href="/login" class="status-badge" style="text-decoration:none; background:rgba(0,242,254,0.1); border-color:rgba(0,242,254,0.35); color:var(--accent-cyan);" title="Account &amp; Role Management">
+                <span>👤 {{ current_user.username }} ({{ current_user.role_label }})</span>
+            </a>
+            <button class="btn btn-secondary btn-sm" onclick="globalLogout()">Sign Out</button>
+            {% else %}
+            <a href="/login" class="btn btn-secondary btn-sm">
+                <span>🔑 Sign In</span>
+            </a>
+            {% endif %}
             <a href="/simulations" class="btn btn-primary btn-sm">
                 <span>▶ Run Attack</span>
             </a>
@@ -101,6 +132,43 @@
 
     <!-- Shared Global Script -->
     <script>
+        // Automatically attach CSRF token to same-origin state-changing fetch requests
+        (function() {
+            const _origFetch = window.fetch;
+            window.getCsrfToken = function() {
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                return meta ? meta.getAttribute('content') : '';
+            };
+            window.setCsrfToken = function(newToken) {
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                if (meta && newToken) meta.setAttribute('content', newToken);
+            };
+            window.fetch = function(input, init) {
+                const opts = Object.assign({}, init || {});
+                const method = (opts.method || 'GET').toUpperCase();
+                const urlStr = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+                const isSameOrigin = !urlStr.startsWith('http://') && !urlStr.startsWith('https://') || urlStr.startsWith(window.location.origin);
+                if (isSameOrigin && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+                    const headers = new Headers(opts.headers || {});
+                    if (!headers.has('X-CSRF-Token')) {
+                        const tok = window.getCsrfToken();
+                        if (tok) headers.set('X-CSRF-Token', tok);
+                    }
+                    opts.headers = headers;
+                }
+                return _origFetch.call(window, input, opts);
+            };
+        })();
+
+        async function globalLogout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+            } catch (e) {
+                console.warn('Logout error', e);
+            }
+            window.location.href = '/login';
+        }
+
         function openModal(htmlContent) {
             document.getElementById('modal-body-content').innerHTML = htmlContent;
             document.getElementById('global-modal').style.display = 'flex';

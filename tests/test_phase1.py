@@ -115,5 +115,24 @@ class TestPhase1(unittest.TestCase):
         self.assertIn('endpoint', first)
         self.assertIn('status_code', first)
 
+    def test_07_target_portal_views_and_routes(self):
+        """Test that Fortress Bank demo portal views render HTML properly across alias routes"""
+        routes = ['/target', '/api/target', '/bank', '/demo']
+        for r in routes:
+            res = self.client.get(r)
+            self.assertEqual(res.status_code, 200, f"Route {r} failed to render")
+            self.assertIn(b'Fortress Demo Banking Portal', res.data)
+            self.assertIn(b'form-target-login', res.data)
+            self.assertIn(b'target-search-query', res.data)
+            self.assertIn(b'btn-target-secrets', res.data)
+            self.assertIn(b'form-target-feedback', res.data)
+
+        # Test that Accept: application/json on /api/target returns JSON status
+        res_json = self.client.get('/api/target', headers={'Accept': 'application/json'})
+        self.assertEqual(res_json.status_code, 200)
+        data = json.loads(res_json.data)
+        self.assertEqual(data.get('status'), 'online')
+        self.assertEqual(data.get('target_name'), 'Fortress Demo Banking Portal')
+
 if __name__ == '__main__':
     unittest.main()

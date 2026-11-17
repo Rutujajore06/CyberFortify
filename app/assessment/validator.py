@@ -103,12 +103,12 @@ def validate_target_url(raw_url):
     is_allowed_path = (
         normalized_path == '/' or
         normalized_path.startswith('/api/target') or
-        normalized_path in ('/dashboard', '/simulations', '/alerts', '/logs', '/defenses', '/report', '/assessment')
+        normalized_path in ('/dashboard', '/simulations', '/alerts', '/logs', '/defenses', '/report', '/assessment', '/target', '/target/', '/bank', '/demo')
     )
     if not is_allowed_path:
         return False, (
             f"Unexpected path '{normalized_path}'. Assessment target path must be root ('/') or within "
-            "the Fortress Bank demo endpoints ('/api/target/*')."
+            "the Fortress Bank demo endpoints ('/api/target/*', '/target')."
         ), None
 
     normalized_url = f"{scheme}://{hostname}:{port}{normalized_path}"

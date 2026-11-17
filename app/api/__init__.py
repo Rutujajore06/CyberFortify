@@ -8,3 +8,4 @@ from app.api import alert_routes
 from app.api import event_routes
 from app.api import evaluation_routes
 from app.api import assessment_routes
+from app.api import live_testing_routes

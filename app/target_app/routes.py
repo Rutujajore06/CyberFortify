@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from flask import request, jsonify
+from flask import request, jsonify, render_template
 from app.target_app import target_bp
 from app.target_app.logger import log_target_request
 from app.target_app.defenses import (
@@ -12,6 +12,18 @@ from app.target_app.defenses import (
 )
 from app.database import get_db_connection
 from app.models.defense_model import get_defense_snapshot
+
+@target_bp.route('/', methods=['GET'])
+@target_bp.route('', methods=['GET'])
+def target_portal():
+    """
+    Fortress Demo Banking Portal Web Interface.
+    Serves the interactive banking UI for localhost testing.
+    If JSON is requested via Accept header, returns target_status JSON.
+    """
+    if request.headers.get('Accept') == 'application/json':
+        return target_status()
+    return render_template('target.html', active_page='target')
 
 @target_bp.route('/status', methods=['GET'])
 def target_status():

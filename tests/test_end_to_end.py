@@ -7,8 +7,8 @@ class TestEndToEnd(unittest.TestCase):
         self.client = self.app.test_client()
 
     def test_01_ui_pages_render(self):
-        """Verify that all CyberFortify web dashboard views render with HTTP 200"""
-        pages = ['/', '/simulations', '/alerts', '/logs', '/defenses', '/report']
+        """Verify that all CyberFortify web dashboard views and Fortress Bank Demo render with HTTP 200"""
+        pages = ['/', '/simulations', '/alerts', '/logs', '/defenses', '/report', '/assessment', '/target', '/api/target']
         for p in pages:
             res = self.client.get(p)
             self.assertEqual(res.status_code, 200, f"Page {p} failed to render")
@@ -22,7 +22,8 @@ class TestEndToEnd(unittest.TestCase):
             '/static/js/simulations.js',
             '/static/js/alerts.js',
             '/static/js/logs.js',
-            '/static/js/defenses.js'
+            '/static/js/defenses.js',
+            '/static/js/target.js'
         ]
         for a in assets:
             res = self.client.get(a)

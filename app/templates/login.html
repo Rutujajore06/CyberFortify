@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Authentication & Role-Based Access Control{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <span>🔐</span> Authentication &amp; Role-Based Access Control
+        </h1>
+        <p class="page-description">
+            Secure session authentication with memory-hard scrypt password hashing, CSRF protection, and server-side RBAC (Admin, Website Owner, Viewer).
+        </p>
+    </div>
+    <div style="display:flex; gap:0.6rem;">
+        <a href="/live-targets" class="btn btn-secondary">🌐 Live Targets</a>
+        <a href="/live-assessment" class="btn btn-secondary">📡 Live Assessment</a>
+    </div>
+</div>
+
+<!-- Auth Mode Status Banner -->
+<div class="card" style="margin-bottom: 1.75rem; border-color: rgba(0, 242, 254, 0.35);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+            <div style="font-size:0.78rem; color:var(--accent-cyan); font-weight:700; text-transform:uppercase;">Current Session &amp; Enforcement Status</div>
+            <div id="auth-status-summary" style="font-size:0.9rem; color:var(--text-primary); margin-top:0.3rem;">Checking session state...</div>
+        </div>
+        <div id="auth-mode-badges" style="display:flex; gap:0.5rem; flex-wrap:wrap;"></div>
+    </div>
+</div>
+
+<div id="auth-feedback" style="display:none; margin-bottom:1.25rem; padding:0.9rem 1rem; border-radius:var(--radius-sm); font-size:0.87rem;"></div>
+
+<!-- First-Time Admin Setup Card (Only displayed when zero Admin accounts exist) -->
+<div id="admin-setup-card" class="card" style="display:none; margin-bottom:1.75rem; border-color:rgba(245,158,11,0.5);">
+    <div class="card-header-flex">
+        <h2 class="card-title"><span>🛡️</span> First-Time Administrator Setup</h2>
+        <span class="badge badge-high">ONE-TIME BOOTSTRAP</span>
+    </div>
+    <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:1rem;">
+        No Administrator account exists yet (CyberFortify never uses hardcoded admin credentials). Create the initial Admin account below; this setup form locks permanently once an Admin is created.
+    </p>
+    <form onsubmit="submitAdminSetup(event)" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:0.85rem; align-items:end;">
+        <div>
+            <label style="display:block; font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.3rem;">Admin Username *</label>
+            <input type="text" id="setup-username" class="form-control" required minlength="3" placeholder="sec_admin" style="width:100%;">
+        </div>
+        <div>
+            <label style="display:block; font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.3rem;">Admin Email *</label>
+            <input type="email" id="setup-email" class="form-control" required placeholder="admin@organization.org" style="width:100%;">
+        </div>
+        <div>
+            <label style="display:block; font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.3rem;">Strong Password (min 8 chars) *</label>
+            <input type="password" id="setup-password" class="form-control" required minlength="8" placeholder="••••••••••••" style="width:100%;">
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">🛡️ Initialize Admin</button>
+        </div>
+    </form>
+</div>
+
+<!-- Sign In & Self-Registration Grid -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap:1.5rem; margin-bottom:1.75rem;">
+    <!-- Sign In Card -->
+    <div class="card">
+        <div class="card-header-flex">
+            <h2 class="card-title"><span>🔑</span> Sign In</h2>
+            <span class="card-badge">Session + CSRF Protected</span>
+        </div>
+        <form onsubmit="submitLogin(event)" style="display:flex; flex-direction:column; gap:0.9rem;">
+            <div>
+                <label for="login-identifier" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Username or Email</label>
+                <input type="text" id="login-identifier" class="form-control" required placeholder="username or email@domain.com" style="width:100%;">
+            </div>
+            <div>
+                <label for="login-password" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Password</label>
+                <input type="password" id="login-password" class="form-control" required placeholder="••••••••" style="width:100%;">
+            </div>
+            <button type="submit" class="btn btn-primary">🔑 Sign In</button>
+        </form>
+    </div>
+
+    <!-- Self-Registration Card (Website Owner / Viewer Only) -->
+    <div class="card">
+        <div class="card-header-flex">
+            <h2 class="card-title"><span>📝</span> Register Account</h2>
+            <span class="card-badge">Website Owner / Viewer</span>
+        </div>
+        <form onsubmit="submitRegister(event)" style="display:flex; flex-direction:column; gap:0.9rem;">
+            <div>
+                <label for="reg-username" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Username</label>
+                <input type="text" id="reg-username" class="form-control" required minlength="3" placeholder="site_owner" style="width:100%;">
+            </div>
+            <div>
+                <label for="reg-email" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Email</label>
+                <input type="email" id="reg-email" class="form-control" required placeholder="owner@example.org" style="width:100%;">
+            </div>
+            <div>
+                <label for="reg-role" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Role</label>
+                <select id="reg-role" class="form-control" style="width:100%;">
+                    <option value="WEBSITE_OWNER">Website Owner (Register own targets &amp; manage notes)</option>
+                    <option value="VIEWER">Viewer (Read-only dashboards &amp; reports)</option>
+                </select>
+            </div>
+            <div>
+                <label for="reg-password" style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Password (min 8 chars)</label>
+                <input type="password" id="reg-password" class="form-control" required minlength="8" placeholder="••••••••" style="width:100%;">
+            </div>
+            <button type="submit" class="btn btn-secondary">📝 Create Account</button>
+        </form>
+    </div>
+</div>
+
+<!-- Role Permission Reference Card -->
+<div class="card" style="margin-bottom:1.75rem;">
+    <h2 class="card-title" style="margin-bottom:1rem;"><span>📋</span> Role-Based Access Control (RBAC) Permission Matrix</h2>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Role</th>
+                    <th>Target Registration &amp; Verification</th>
+                    <th>Approve / Reject &amp; Run Scans/Retests</th>
+                    <th>Assessment Results &amp; Reports</th>
+                    <th>Remediation Notes &amp; Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="badge badge-critical">Admin</span></td>
+                    <td>Full Access</td>
+                    <td><strong>Allowed</strong> (Admin Only)</td>
+                    <td>All targets &amp; reports</td>
+                    <td>Full Access</td>
+                </tr>
+                <tr>
+                    <td><span class="badge" style="background:rgba(0,242,254,0.15); color:var(--accent-cyan); border:1px solid rgba(0,242,254,0.35);">Website Owner</span></td>
+                    <td>Register &amp; verify <strong>own</strong> targets</td>
+                    <td>Denied (HTTP 403)</td>
+                    <td><strong>Own targets ONLY</strong> (IDOR protected)</td>
+                    <td>Own targets (Open / In Progress + Notes)</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-low">Viewer</span></td>
+                    <td>Denied (Read-only, tokens redacted)</td>
+                    <td>Denied (HTTP 403)</td>
+                    <td>Read-only dashboards &amp; reports</td>
+                    <td>Read-only (Denied HTTP 403 on edit)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Admin User Management Section (Visible only when signed in as Admin) -->
+<div id="admin-users-section" class="card" style="display:none;">
+    <div class="card-header-flex">
+        <h2 class="card-title"><span>👥</span> Administrator User Management</h2>
+        <span class="badge badge-critical">ADMIN ONLY</span>
+    </div>
+
+    <form onsubmit="adminCreateUser(event)" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.75rem; align-items:end; margin-bottom:1.25rem;">
+        <div>
+            <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.25rem;">Username</label>
+            <input type="text" id="adm-new-username" class="form-control" required minlength="3" style="width:100%;">
+        </div>
+        <div>
+            <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.25rem;">Email</label>
+            <input type="email" id="adm-new-email" class="form-control" required style="width:100%;">
+        </div>
+        <div>
+            <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.25rem;">Role</label>
+            <select id="adm-new-role" class="form-control" style="width:100%;">
+                <option value="WEBSITE_OWNER">Website Owner</option>
+                <option value="VIEWER">Viewer</option>
+                <option value="ADMIN">Admin</option>
+            </select>
+        </div>
+        <div>
+            <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.25rem;">Password (min 8)</label>
+            <input type="password" id="adm-new-password" class="form-control" required minlength="8" style="width:100%;">
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">+ Provision User</button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Created (UTC)</th>
+                    <th>Last Login (UTC)</th>
+                </tr>
+            </thead>
+            <tbody id="admin-users-tbody"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
+{% endblock %}

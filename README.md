@@ -124,6 +124,7 @@ CyberFortify unites offensive simulation and defensive evaluation within a unifi
    ```
    Open your browser at:
    - Dashboard: `http://127.0.0.1:5000/`
+   - Fortress Bank Demo Portal: `http://127.0.0.1:5000/target` (or `http://localhost:5000/target`)
    - Website Security Assessment: `http://127.0.0.1:5000/assessment`
    - Red Team Simulation: `http://127.0.0.1:5000/simulations`
    - Blue Team Alerts: `http://127.0.0.1:5000/alerts`

@@ -75,6 +75,8 @@ class TestWebsiteSecurityAssessment(unittest.TestCase):
             f"http://127.0.0.1:{Config.DEMO_PORT}",
             f"http://localhost:{Config.DEMO_PORT}",
             f"http://127.0.0.1:{Config.DEMO_PORT}/",
+            f"http://127.0.0.1:{Config.DEMO_PORT}/target",
+            f"http://localhost:{Config.DEMO_PORT}/target",
             f"http://127.0.0.1:{Config.DEMO_PORT}/api/target/status"
         ]
 

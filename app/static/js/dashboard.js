@@ -98,8 +98,8 @@ function renderScenarioChart(scenarioBreakdown) {
     const scenarioLabels = ['Brute Force', 'Broken Access', 'SQL Injection', 'Input / XSS', 'Benign Baseline'];
     const scenarioKeys = ['brute_force', 'unauthorized_access', 'sql_injection', 'input_validation', 'benign'];
 
-    let simulatedCounts = [5, 3, 4, 4, 4];
-    let detectedCounts = [5, 3, 4, 4, 0];
+    let simulatedCounts = [0, 0, 0, 0, 0];
+    let detectedCounts = [0, 0, 0, 0, 0];
 
     if (scenarioBreakdown && Object.keys(scenarioBreakdown).length > 0) {
         simulatedCounts = scenarioKeys.map(k => (scenarioBreakdown[k] ? scenarioBreakdown[k].attacks : 0));
@@ -332,4 +332,23 @@ async function runDashboardQuickAssessment() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', loadDashboardMetrics);
+async function syncDashboardDemoOrigin() {
+    try {
+        const res = await fetch('/api/assessment/config');
+        const data = await res.json();
+        if (data.status === 'success' && data.demo_origin) {
+            const input = document.getElementById('dashboard-target-url');
+            if (input && (!input.value || input.value === 'http://127.0.0.1:5000')) {
+                input.value = data.demo_origin;
+                input.placeholder = data.demo_origin;
+            }
+        }
+    } catch (e) {
+        // Silently keep default
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadDashboardMetrics();
+    syncDashboardDemoOrigin();
+});

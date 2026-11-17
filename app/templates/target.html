@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+
+{% block title %}Fortress Bank Demo Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+            <h1 class="page-title">
+                <span>🏦</span> Fortress Demo Banking Portal
+            </h1>
+            <span class="badge badge-low" id="target-portal-status-badge">Target Online</span>
+        </div>
+        <p class="page-description">
+            The built-in mock banking application target for CyberFortify adversary simulations, detection testing, and security posture assessment.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <a href="/defenses" class="btn btn-secondary">
+            <span>⚡ Remediation Lab</span>
+        </a>
+        <a href="/simulations" class="btn btn-primary">
+            <span>⚔️ Launch Attack Battery</span>
+        </a>
+        <a href="/assessment" class="btn btn-secondary">
+            <span>🔍 Security Assessment</span>
+        </a>
+    </div>
+</div>
+
+<!-- Active Defensive Posture Banner -->
+<div class="card" style="margin-bottom: 2rem; border-color: rgba(0, 242, 254, 0.35); background: linear-gradient(180deg, rgba(13, 21, 39, 0.95), rgba(8, 13, 26, 0.95));">
+    <div class="card-header-flex" style="margin-bottom: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.1rem;">🛡️</span>
+                <h2 class="card-title" style="font-size: 1.05rem;">Active Defensive Posture &amp; Control States</h2>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+                Live defensive configuration retrieved directly from <code>GET /api/target/status</code>. Toggle controls in the Remediation Lab to observe vulnerability changes.
+            </p>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="refreshTargetStatus()" id="btn-refresh-target-status">
+            <span>↺ Refresh Status</span>
+        </button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;" id="target-defenses-grid">
+        <!-- Rate Limiting -->
+        <div class="card" style="background: rgba(11, 19, 36, 0.7); border-color: var(--border-color); padding: 1rem;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Scenario 1: Brute Force</div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #fff; margin: 0.25rem 0;">Rate Limiting</div>
+            <div id="status-badge-rate-limiting"><span class="badge badge-low">Checking...</span></div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">Endpoint: <code>/api/target/login</code></div>
+        </div>
+
+        <!-- RBAC -->
+        <div class="card" style="background: rgba(11, 19, 36, 0.7); border-color: var(--border-color); padding: 1rem;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Scenario 2: Access Control</div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #fff; margin: 0.25rem 0;">RBAC Authorization</div>
+            <div id="status-badge-rbac"><span class="badge badge-low">Checking...</span></div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">Endpoint: <code>/api/target/admin/secrets</code></div>
+        </div>
+
+        <!-- Parameterized Queries -->
+        <div class="card" style="background: rgba(11, 19, 36, 0.7); border-color: var(--border-color); padding: 1rem;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Scenario 3: SQL Injection</div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #fff; margin: 0.25rem 0;">Parameterized Queries</div>
+            <div id="status-badge-parameterized"><span class="badge badge-low">Checking...</span></div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">Endpoint: <code>/api/target/search</code></div>
+        </div>
+
+        <!-- Input Sanitization -->
+        <div class="card" style="background: rgba(11, 19, 36, 0.7); border-color: var(--border-color); padding: 1rem;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Scenario 4: XSS / Validation</div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #fff; margin: 0.25rem 0;">Input Sanitization</div>
+            <div id="status-badge-sanitization"><span class="badge badge-low">Checking...</span></div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">Endpoint: <code>/api/target/feedback</code></div>
+        </div>
+    </div>
+</div>
+
+<!-- 4 Interactive Target Feature Grids -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 1.75rem; margin-bottom: 2rem;">
+
+    <!-- Card 1: Account Login (Scenario 1 Testing) -->
+    <div class="card" id="card-target-login">
+        <div class="card-header-flex">
+            <h2 class="card-title" style="font-size: 1.1rem;">
+                <span>🔑</span> Customer &amp; Staff Login
+            </h2>
+            <span class="card-badge">POST /api/target/login</span>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+            Authenticate with mock banking credentials. When <strong>Rate Limiting</strong> is active, 3 consecutive failed attempts trigger account/IP lockout (HTTP 429).
+        </p>
+
+        <!-- Quick Credential Autofill Buttons -->
+        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="quickFillLogin('alice', 'AliceSecure123#')">
+                👤 Alice (Customer)
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="quickFillLogin('bob', 'BobPassword789$')">
+                👤 Bob (Customer)
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="quickFillLogin('admin', 'AdminPass2026!')">
+                👑 Admin (Staff)
+            </button>
+            <button class="btn btn-secondary btn-sm" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;" onclick="quickFillLogin('alice', 'WrongPassword123!')">
+                ⚠️ Invalid Password
+            </button>
+        </div>
+
+        <form id="form-target-login" onsubmit="handleTargetLogin(event)">
+            <div style="margin-bottom: 0.75rem;">
+                <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Username</label>
+                <input type="text" id="target-login-username" class="form-control" style="width: 100%; font-family: var(--font-mono);" placeholder="alice" required>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Password</label>
+                <input type="password" id="target-login-password" class="form-control" style="width: 100%; font-family: var(--font-mono);" placeholder="AliceSecure123#" required>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button type="submit" class="btn btn-primary" id="btn-target-login" style="flex: 1;">
+                    <span>🔐 Sign In to Portal</span>
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="simulateFailedLogins(3)" title="Simulates 3 rapid failed attempts to test rate-limit lockout">
+                    <span>⚡ Test Lockout</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Login Result Box -->
+        <div id="target-login-result" style="display: none; margin-top: 1rem; padding: 0.85rem; border-radius: var(--radius-sm);"></div>
+    </div>
+
+    <!-- Card 2: Customer Directory Search (Scenario 3 Testing) -->
+    <div class="card" id="card-target-search">
+        <div class="card-header-flex">
+            <h2 class="card-title" style="font-size: 1.1rem;">
+                <span>🔍</span> Customer Directory Search
+            </h2>
+            <span class="card-badge">GET /api/target/search</span>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+            Query banking customers by username. In vulnerable mode (defenses OFF), raw SQL concatenation permits SQL injection (<code>' OR 1=1 --</code>).
+        </p>
+
+        <!-- Quick Search Probe Buttons -->
+        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="quickFillSearch('alice')">
+                Clean: 'alice'
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="quickFillSearch('')">
+                Empty Query
+            </button>
+            <button class="btn btn-secondary btn-sm" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;" onclick="quickFillSearch(&quot;' OR 1=1 --&quot;)">
+                💉 Probe: ' OR 1=1 --
+            </button>
+            <button class="btn btn-secondary btn-sm" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;" onclick="quickFillSearch(&quot;admin' --&quot;)">
+                💉 Probe: admin' --
+            </button>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="text" id="target-search-query" class="form-control" style="flex: 1; font-family: var(--font-mono);" placeholder="Search username or probe payload...">
+            <button class="btn btn-primary" onclick="handleTargetSearch()" id="btn-target-search">
+                <span>🔎 Search</span>
+            </button>
+        </div>
+
+        <!-- Search Results Table / Box -->
+        <div id="target-search-result" style="min-height: 120px;">
+            <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0;">
+                Enter a query or select a probe above to search target database records.
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 3: Treasury Vault Secrets (Scenario 2 Testing) -->
+    <div class="card" id="card-target-admin">
+        <div class="card-header-flex">
+            <h2 class="card-title" style="font-size: 1.1rem;">
+                <span>🏛️</span> Treasury Reserve Vault &amp; Secrets
+            </h2>
+            <span class="card-badge">GET /api/target/admin/secrets</span>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+            Protected administrative endpoint. In vulnerable mode (RBAC OFF), forced browsing exposes the vault master key without authentication!
+        </p>
+
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem;">Select Authorization Mode for Request:</label>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">
+                    <input type="radio" name="target-auth-mode" value="none" checked>
+                    <span><strong>Anonymous / Forced Browsing</strong> (No Authorization header)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">
+                    <input type="radio" name="target-auth-mode" value="session">
+                    <span><strong>Active User Token</strong> (<span id="active-session-label">No active session — sign in first</span>)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">
+                    <input type="radio" name="target-auth-mode" value="admin">
+                    <span><strong>Valid Administrator Bearer Token</strong> (<code>Bearer cyberfortify-admin-token-valid-2026</code>)</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <button class="btn btn-primary" onclick="handleTargetSecrets()" id="btn-target-secrets" style="width: 100%;">
+                <span>🛡️ Request Administrative Vault Secrets</span>
+            </button>
+        </div>
+
+        <!-- Secrets Result Box -->
+        <div id="target-secrets-result" style="min-height: 100px;">
+            <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1.5rem 0;">
+                Click above to execute an authorization check against the administrative vault endpoint.
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 4: Customer Feedback & Support (Scenario 4 Testing) -->
+    <div class="card" id="card-target-feedback">
+        <div class="card-header-flex">
+            <h2 class="card-title" style="font-size: 1.1rem;">
+                <span>💬</span> Customer Feedback &amp; Inquiries
+            </h2>
+            <span class="card-badge">POST /api/target/feedback</span>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+            Submit inquiries to Fortress Bank. In vulnerable mode (Sanitization OFF), unsanitized script tags (XSS) are stored directly into SQLite.
+        </p>
+
+        <!-- Quick XSS Probe Buttons -->
+        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="quickFillFeedback('alice', 'The transfer was processed immediately. Great customer experience!')">
+                Clean Message
+            </button>
+            <button class="btn btn-secondary btn-sm" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;" onclick="quickFillFeedback('hacker_test', '<script>alert(&quot;XSS-Vulnerability&quot;)</script>')">
+                ⚡ Script Tag Probe
+            </button>
+            <button class="btn btn-secondary btn-sm" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;" onclick="quickFillFeedback('hacker_test', '<img src=x onerror=console.log(&quot;XSS-Triggered&quot;)>')">
+                ⚡ Img Onerror Probe
+            </button>
+        </div>
+
+        <form id="form-target-feedback" onsubmit="handleTargetFeedback(event)">
+            <div style="margin-bottom: 0.75rem;">
+                <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Author / Customer Name</label>
+                <input type="text" id="target-feedback-author" class="form-control" style="width: 100%; font-family: var(--font-mono);" placeholder="alice" required>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Feedback Content</label>
+                <textarea id="target-feedback-content" class="form-control" style="width: 100%; min-height: 75px; font-family: var(--font-mono);" placeholder="Type feedback or insert security probe..." required></textarea>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button type="submit" class="btn btn-primary" id="btn-target-feedback" style="flex: 1;">
+                    <span>📤 Submit Feedback</span>
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="loadTargetFeedback()">
+                    <span>↺ Refresh List</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Feedback Result Box -->
+        <div id="target-feedback-result" style="display: none; margin-top: 1rem; padding: 0.75rem; border-radius: var(--radius-sm);"></div>
+
+        <!-- Recent Feedback List -->
+        <div style="margin-top: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h3 style="font-size: 0.85rem; color: #fff; text-transform: uppercase; letter-spacing: 0.05em;">Recent Stored Feedback</h3>
+                <span id="feedback-count-badge" class="badge badge-low">0 items</span>
+            </div>
+            <div id="target-feedback-list" style="max-height: 180px; overflow-y: auto;">
+                <div style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 1rem 0;">Loading stored feedback...</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Real-Time Audit Telemetry Integration Notice -->
+<div class="card" style="border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.04); padding: 1.25rem 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.2rem;">📡</span>
+                <strong style="color: var(--accent-cyan); font-size: 0.95rem;">Live SIEM Telemetry &amp; Detection Pipeline Active</strong>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem; max-width: 850px;">
+                Every interaction with this Fortress Bank demo application generates structured audit records in SQLite (<code>events</code> table). Blue Team signature and sliding-window rules continuously analyze telemetry to detect attacks and calculate detection metrics.
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="/alerts" class="btn btn-secondary btn-sm">
+                <span>🛡️ Blue Team Alerts</span>
+            </a>
+            <a href="/logs" class="btn btn-secondary btn-sm">
+                <span>📜 Audit Logs</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/target.js') }}"></script>
+{% endblock %}

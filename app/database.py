@@ -153,6 +153,151 @@ def init_db():
     )
     ''')
 
+    # 10. Live Authorized Website Targets Table (Phase 1)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS live_targets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        target_uuid TEXT UNIQUE NOT NULL,
+        target_url TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        auth_status TEXT NOT NULL DEFAULT 'PENDING_VERIFICATION',
+        owner_name TEXT NOT NULL,
+        owner_email TEXT NOT NULL,
+        owner_consent INTEGER NOT NULL DEFAULT 0,
+        verification_method TEXT NOT NULL DEFAULT 'http_file',
+        verification_token TEXT NOT NULL,
+        is_verified INTEGER NOT NULL DEFAULT 0,
+        verified_at TEXT,
+        verification_notes TEXT,
+        approved_paths TEXT NOT NULL DEFAULT '["/"]',
+        allowed_methods TEXT NOT NULL DEFAULT '["GET", "HEAD"]',
+        start_date TEXT NOT NULL,
+        expiry_date TEXT NOT NULL,
+        max_request_rate INTEGER NOT NULL DEFAULT 10,
+        approved_by TEXT,
+        approved_at TEXT,
+        rejection_reason TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    ''')
+
+    # 11. Live Website Security Assessments Table (Phase 2 & 4)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS live_assessments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        assessment_uuid TEXT UNIQUE NOT NULL,
+        target_uuid TEXT NOT NULL,
+        target_url TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        completed_at TEXT,
+        status TEXT NOT NULL DEFAULT 'RUNNING',
+        progress_percent INTEGER DEFAULT 0,
+        current_step TEXT,
+        security_score INTEGER DEFAULT 0,
+        security_grade TEXT DEFAULT 'N/A',
+        total_checks INTEGER DEFAULT 0,
+        passed_checks INTEGER DEFAULT 0,
+        failed_checks INTEGER DEFAULT 0,
+        critical_count INTEGER DEFAULT 0,
+        high_count INTEGER DEFAULT 0,
+        medium_count INTEGER DEFAULT 0,
+        low_count INTEGER DEFAULT 0,
+        info_count INTEGER DEFAULT 0,
+        findings_json TEXT NOT NULL DEFAULT '[]',
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        error_message TEXT,
+        FOREIGN KEY (target_uuid) REFERENCES live_targets(target_uuid)
+    )
+    ''')
+
+    # 12. Live Assessment Granular Findings Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS live_assessment_findings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        assessment_uuid TEXT NOT NULL,
+        check_key TEXT NOT NULL,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        status TEXT NOT NULL,
+        evidence TEXT NOT NULL,
+        remediation TEXT NOT NULL,
+        FOREIGN KEY (assessment_uuid) REFERENCES live_assessments(assessment_uuid)
+    )
+    ''')
+
+    # 13. Live Testing Security & Compliance Audit Logs (Phase 3)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS live_audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        log_uuid TEXT UNIQUE NOT NULL,
+        timestamp TEXT NOT NULL,
+        target_uuid TEXT,
+        domain TEXT,
+        action TEXT NOT NULL,
+        url TEXT,
+        http_method TEXT,
+        resolved_ip TEXT,
+        status_code INTEGER,
+        outcome TEXT NOT NULL,
+        reason TEXT,
+        actor TEXT DEFAULT 'system'
+    )
+    ''')
+
+    # 14. Live Website Vulnerability Remediation Tracking Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS live_remediations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        remediation_uuid TEXT UNIQUE NOT NULL,
+        target_uuid TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        check_key TEXT NOT NULL,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL,
+        affected_header TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        finding_status TEXT NOT NULL,
+        remediation_status TEXT NOT NULL DEFAULT 'Open',
+        evidence TEXT NOT NULL,
+        remediation_instructions TEXT NOT NULL,
+        remediation_notes TEXT DEFAULT '',
+        first_detected_assessment_uuid TEXT NOT NULL,
+        latest_assessment_uuid TEXT NOT NULL,
+        verified_assessment_uuid TEXT,
+        retest_confirmed INTEGER NOT NULL DEFAULT 0,
+        fixed_at TEXT,
+        verified_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(target_uuid, check_key),
+        FOREIGN KEY (target_uuid) REFERENCES live_targets(target_uuid)
+    )
+    ''')
+
+    # 15. Platform Users & Role-Based Access Control Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS platform_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_uuid TEXT UNIQUE NOT NULL,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        last_login_at TEXT
+    )
+    ''')
+
+    # Safe non-destructive migration: add owner_user_id to live_targets for IDOR enforcement
+    cursor.execute('PRAGMA table_info(live_targets)')
+    live_target_cols = {row['name'] for row in cursor.fetchall()}
+    if 'owner_user_id' not in live_target_cols:
+        cursor.execute('ALTER TABLE live_targets ADD COLUMN owner_user_id TEXT')
+
     conn.commit()
 
     # Seed Default Defenses if not present
