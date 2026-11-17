@@ -107,7 +107,9 @@ async function onRemTargetChanged() {
         return;
     }
 
-    retestBtn.disabled = !target.is_scannable;
+    const role = window.CURRENT_USER_ROLE || '';
+    const canRetest = (role === '' || role === 'ADMIN');
+    retestBtn.disabled = !(target.is_scannable && canRetest);
     pathInput.value = (target.approved_paths && target.approved_paths[0]) ? target.approved_paths[0] : '/';
 
     await Promise.all([
@@ -162,6 +164,7 @@ function renderRemediationCards() {
         return;
     }
 
+    const isViewer = (window.CURRENT_USER_ROLE === 'VIEWER');
     container.innerHTML = items.map(r => {
         const canConfirmVerified = r.retest_confirmed === true;
         const borderColor = r.remediation_status === 'Verified' || r.remediation_status === 'Fixed'
@@ -213,7 +216,7 @@ function renderRemediationCards() {
                                style="width:100%; padding:0.55rem 0.75rem; background:var(--bg-input); border:1px solid var(--border-color); color:#fff; border-radius:var(--radius-sm); font-size:0.84rem;">
                     </div>
                     <div>
-                        <button class="btn btn-secondary btn-sm" onclick="saveRemediation('${escapeHtml(r.remediation_uuid)}')">💾 Save</button>
+                        <button class="btn btn-secondary btn-sm" onclick="saveRemediation('${escapeHtml(r.remediation_uuid)}')" ${isViewer ? 'disabled title="Viewer role is read-only"' : ''}>💾 Save</button>
                     </div>
                 </div>
 

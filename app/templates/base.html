@@ -132,6 +132,7 @@
 
     <!-- Shared Global Script -->
     <script>
+        window.CURRENT_USER_ROLE = "{{ current_user.role if current_user else '' }}";
         // Automatically attach CSRF token to same-origin state-changing fetch requests
         (function() {
             const _origFetch = window.fetch;

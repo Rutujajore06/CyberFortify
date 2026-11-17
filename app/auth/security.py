@@ -1,5 +1,8 @@
 import hmac
+import time
 import secrets
+import threading
+from collections import deque
 from flask import session, request, current_app, has_app_context
 from app.config import Config
 from app.models.user_model import (
@@ -96,11 +99,44 @@ def validate_csrf_token():
     return True, None
 
 
+class AuthRateLimiter:
+    """Thread-safe sliding-window rate limiter protecting login, registration, and admin setup."""
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._buckets = {}
+
+    def check_and_record(self, key, max_attempts, window_seconds):
+        now = time.monotonic()
+        cutoff = now - float(window_seconds)
+        with self._lock:
+            dq = self._buckets.setdefault(key, deque())
+            while dq and dq[0] <= cutoff:
+                dq.popleft()
+            if len(dq) >= int(max_attempts):
+                retry_after = max(1, int(window_seconds - (now - dq[0])))
+                return False, retry_after
+            dq.append(now)
+            return True, 0
+
+    def reset(self):
+        with self._lock:
+            self._buckets.clear()
+
+
+auth_rate_limiter = AuthRateLimiter()
+
+
+def get_client_ip():
+    """Returns client IP address (honors ProxyFix when behind a trusted reverse proxy)."""
+    return (request.remote_addr or '127.0.0.1').strip()
+
+
 def user_owns_target(user, target):
     """
     Strict IDOR ownership check for Website Owner accounts.
-    Matches owner_user_id first; falls back to exact owner_email match only for legacy
-    targets created before owner_user_id was assigned.
+    - Admin owns/manages all targets (including legacy unassigned targets where owner_user_id is NULL).
+    - Website Owner ONLY owns targets explicitly bound to their user_uuid (owner_user_id).
+      Unassigned legacy targets (owner_user_id IS NULL) cannot be claimed by matching an unverified email.
     """
     if not user or not target:
         return False
@@ -110,10 +146,9 @@ def user_owns_target(user, target):
         return False
 
     target_owner_id = target.get('owner_user_id')
-    if target_owner_id:
-        return target_owner_id == user['user_uuid']
-
-    return (target.get('owner_email') or '').strip().lower() == (user.get('email') or '').strip().lower()
+    if not target_owner_id:
+        return False
+    return target_owner_id == user['user_uuid']
 
 
 def sanitize_target_for_user(target, user=None, include_token=False):

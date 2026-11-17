@@ -9,6 +9,7 @@ from app.database import get_db_connection
 from app.models.user_model import create_user, ROLE_ADMIN, ROLE_OWNER, ROLE_VIEWER
 from app.models.live_target_model import utc_now
 from app.live_testing.security import rate_limiter
+from app.auth.security import auth_rate_limiter
 
 
 def _mock_tls():
@@ -67,6 +68,7 @@ class TestAdminAuthAndRBAC(unittest.TestCase):
         self.app.config['REQUIRE_AUTH'] = True
         self.app.config['CSRF_ENABLED'] = True
         rate_limiter.reset()
+        auth_rate_limiter.reset()
         self.tag = uuid.uuid4().hex[:8]
 
     def _login_client(self, username, password):

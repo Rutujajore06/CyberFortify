@@ -1,7 +1,7 @@
 import re
 import json
 import datetime
-from flask import request, jsonify, Response
+from flask import request, jsonify, Response, current_app
 from app.api import api_bp
 from app.models.user_model import ROLE_ADMIN, ROLE_OWNER, ROLE_VIEWER
 from app.models.live_target_model import (
@@ -465,11 +465,12 @@ def run_live_assessment_api():
             'error_type': e.error_code,
             'message': e.message
         }), e.status_code
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception("Unexpected error during live assessment for target_uuid=%s", target_uuid)
         return jsonify({
             'status': 'error',
             'error_type': 'ASSESSMENT_ERROR',
-            'message': f"Live assessment encountered an unexpected error: {str(e)}"
+            'message': "Live assessment failed due to an internal error. Check server logs for details."
         }), 500
 
 
@@ -876,11 +877,12 @@ def run_live_retest_api():
             'error_type': e.error_code,
             'message': e.message
         }), e.status_code
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception("Unexpected error during live retest for target_uuid=%s", target_uuid)
         return jsonify({
             'status': 'error',
             'error_type': 'RETEST_ERROR',
-            'message': f"Live retest encountered an unexpected error: {str(e)}"
+            'message': "Live retest failed due to an internal error. Check server logs for details."
         }), 500
 
 

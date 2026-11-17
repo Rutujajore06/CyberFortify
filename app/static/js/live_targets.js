@@ -158,13 +158,19 @@ async function loadTargets() {
             const startShort = (t.start_date || '').slice(0, 16).replace('T', ' ');
             const expShort = (t.expiry_date || '').slice(0, 16).replace('T', ' ');
 
-            let actionsHtml = `<div style="display:flex; gap:0.4rem; flex-wrap:wrap;">`;
-            actionsHtml += `<button class="btn btn-secondary btn-sm" onclick="openVerifyModal('${escapeHtml(t.target_uuid)}')">🔑 Details / Verify</button>`;
+            const role = window.CURRENT_USER_ROLE || '';
+            const isAdminOrDemo = (role === '' || role === 'ADMIN');
+            const isViewer = (role === 'VIEWER');
 
-            if (t.auth_status === 'PENDING_APPROVAL') {
+            let actionsHtml = `<div style="display:flex; gap:0.4rem; flex-wrap:wrap;">`;
+            if (!isViewer) {
+                actionsHtml += `<button class="btn btn-secondary btn-sm" onclick="openVerifyModal('${escapeHtml(t.target_uuid)}')">🔑 Details / Verify</button>`;
+            }
+
+            if (isAdminOrDemo && t.auth_status === 'PENDING_APPROVAL') {
                 actionsHtml += `<button class="btn btn-primary btn-sm" onclick="approveTarget('${escapeHtml(t.target_uuid)}')">✓ Approve</button>`;
             }
-            if (t.auth_status === 'PENDING_VERIFICATION' || t.auth_status === 'PENDING_APPROVAL' || t.auth_status === 'APPROVED') {
+            if (isAdminOrDemo && (t.auth_status === 'PENDING_VERIFICATION' || t.auth_status === 'PENDING_APPROVAL' || t.auth_status === 'APPROVED')) {
                 actionsHtml += `<button class="btn btn-danger btn-sm" onclick="rejectTarget('${escapeHtml(t.target_uuid)}')">✕ Reject</button>`;
             }
             if (t.is_scannable) {

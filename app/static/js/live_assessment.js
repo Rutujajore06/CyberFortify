@@ -105,7 +105,14 @@ function onTargetSelected() {
             </div>
         </div>
     `;
-    runBtn.disabled = !t.is_scannable;
+    const role = window.CURRENT_USER_ROLE || '';
+    const canRunScan = (role === '' || role === 'ADMIN');
+    runBtn.disabled = !(t.is_scannable && canRunScan);
+    if (t.is_scannable && !canRunScan) {
+        runBtn.title = 'Administrator role is required to launch live assessments.';
+    } else {
+        runBtn.title = '';
+    }
 }
 
 function setProgress(percent, stepText) {

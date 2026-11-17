@@ -4,14 +4,17 @@ import datetime
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'cyberfortify-secret-key-btech-2026')
-    DATABASE_PATH = os.path.join(BASE_DIR, 'cyberfortify.db')
+    DEFAULT_DEV_SECRET_KEY = 'cyberfortify-secret-key-btech-2026'
+    SECRET_KEY = os.environ.get('SECRET_KEY', DEFAULT_DEV_SECRET_KEY)
+    DATABASE_PATH = os.environ.get('DATABASE_PATH', os.path.join(BASE_DIR, 'cyberfortify.db'))
     TARGET_APP_NAME = "Fortress Demo Banking Portal"
     # Port on which CyberFortify runs (binds to hosting platform PORT or defaults to 5000)
     PORT = int(os.environ.get('PORT', 5000))
     HOST = os.environ.get('HOST', '127.0.0.1')
     FLASK_ENV = os.environ.get('FLASK_ENV', 'development').lower()
     IS_RENDER = bool(os.environ.get('RENDER'))
+    TRUST_PROXY = os.environ.get('TRUST_PROXY', 'true' if (IS_RENDER or FLASK_ENV == 'production') else 'false').lower() in ('1', 'true', 'yes')
+    STRICT_PRODUCTION_CONFIG = os.environ.get('STRICT_PRODUCTION_CONFIG', 'false').lower() in ('1', 'true', 'yes')
     # Disable Flask debug mode in production; enable via FLASK_DEBUG or DEBUG env var in development
     DEBUG = os.environ.get('FLASK_DEBUG', os.environ.get('DEBUG', 'false')).lower() in ('1', 'true', 'yes')
 
@@ -43,6 +46,13 @@ class Config:
     CYBERFORTIFY_ADMIN_USERNAME = os.environ.get('CYBERFORTIFY_ADMIN_USERNAME')
     CYBERFORTIFY_ADMIN_EMAIL = os.environ.get('CYBERFORTIFY_ADMIN_EMAIL')
     CYBERFORTIFY_ADMIN_PASSWORD = os.environ.get('CYBERFORTIFY_ADMIN_PASSWORD')
+    CYBERFORTIFY_BOOTSTRAP_TOKEN = os.environ.get('CYBERFORTIFY_BOOTSTRAP_TOKEN')
+
+    # Authentication rate-limiting defaults
+    AUTH_LOGIN_MAX_ATTEMPTS = int(os.environ.get('AUTH_LOGIN_MAX_ATTEMPTS', 10))
+    AUTH_LOGIN_WINDOW_SECONDS = int(os.environ.get('AUTH_LOGIN_WINDOW_SECONDS', 300))
+    AUTH_REGISTER_MAX_ATTEMPTS = int(os.environ.get('AUTH_REGISTER_MAX_ATTEMPTS', 5))
+    AUTH_REGISTER_WINDOW_SECONDS = int(os.environ.get('AUTH_REGISTER_WINDOW_SECONDS', 600))
 
     # Live Authorized Website Security Testing Configuration
     LIVE_ALLOWED_SCHEMES = {'http', 'https'}

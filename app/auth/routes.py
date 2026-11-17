@@ -1,3 +1,4 @@
+import hmac
 from flask import Blueprint, request, jsonify, session, current_app
 from app.models.user_model import (
     ROLE_ADMIN,
@@ -6,6 +7,7 @@ from app.models.user_model import (
     VALID_ROLES,
     has_admin_user,
     create_user,
+    create_initial_admin_atomic,
     authenticate_user,
     list_users
 )
@@ -16,7 +18,9 @@ from app.auth.security import (
     get_current_user,
     get_or_create_csrf_token,
     validate_csrf_token,
-    enforce_rbac
+    enforce_rbac,
+    auth_rate_limiter,
+    get_client_ip
 )
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
@@ -42,27 +46,61 @@ def auth_me_api():
 def setup_initial_admin_api():
     """
     One-time initial Administrator bootstrap when zero Admin accounts exist.
-    Never uses hardcoded credentials. Permanently locked once an Admin exists.
+    - Uses SQLite BEGIN IMMEDIATE atomic lock to prevent concurrent setup race conditions.
+    - On public/production deployments, requires CYBERFORTIFY_BOOTSTRAP_TOKEN (otherwise disabled).
+    - Rate limited per IP. Permanently locked once an Admin exists.
     """
-    if has_admin_user():
+    client_ip = get_client_ip()
+    max_att = int(current_app.config.get('AUTH_REGISTER_MAX_ATTEMPTS', 5))
+    win_sec = int(current_app.config.get('AUTH_REGISTER_WINDOW_SECONDS', 600))
+    ok_rl, retry_after = auth_rate_limiter.check_and_record(f"setup:{client_ip}", max_att, win_sec)
+    if not ok_rl:
+        log_live_audit(
+            action='AUTH_RATE_LIMIT_BLOCKED',
+            outcome='BLOCKED',
+            reason=f"Admin setup rate limit exceeded for IP {client_ip}.",
+            actor=client_ip
+        )
         return jsonify({
             'status': 'error',
-            'error_type': 'ADMIN_ALREADY_EXISTS',
-            'message': "An administrator account already exists. Ask an existing Admin to create additional accounts."
-        }), 403
+            'error_type': 'RATE_LIMIT_EXCEEDED',
+            'message': f"Too many admin setup attempts. Try again in {retry_after} seconds."
+        }), 429
 
     data = request.get_json(silent=True) or request.form or {}
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
 
-    user, err = create_user(username=username, email=email, password=password, role=ROLE_ADMIN)
-    if err:
+    # On public/production deployments, block unauthenticated remote admin takeover
+    if is_public_deployment():
+        expected_boot = current_app.config.get('CYBERFORTIFY_BOOTSTRAP_TOKEN')
+        provided_boot = request.headers.get('X-Bootstrap-Token') or data.get('bootstrap_token') or ''
+        if not expected_boot or not hmac.compare_digest(str(expected_boot), str(provided_boot)):
+            log_live_audit(
+                action='ADMIN_BOOTSTRAP_BLOCKED',
+                outcome='BLOCKED',
+                reason=f"Blocked unauthorized public /setup-admin attempt from IP {client_ip}.",
+                actor=client_ip
+            )
+            return jsonify({
+                'status': 'error',
+                'error_type': 'BOOTSTRAP_DISABLED_IN_PRODUCTION',
+                'message': (
+                    "Public admin bootstrap requires a valid CYBERFORTIFY_BOOTSTRAP_TOKEN "
+                    "(or provision Admin via CYBERFORTIFY_ADMIN_* environment variables)."
+                )
+            }), 403
+
+    user, err_code, err_msg = create_initial_admin_atomic(
+        username=data.get('username'),
+        email=data.get('email'),
+        password=data.get('password')
+    )
+    if err_code:
+        http_code = 403 if err_code == 'ADMIN_ALREADY_EXISTS' else 400
         return jsonify({
             'status': 'error',
-            'error_type': 'VALIDATION_ERROR',
-            'message': err
-        }), 400
+            'error_type': err_code,
+            'message': err_msg
+        }), http_code
 
     # Sign in the newly provisioned Admin with fresh session + CSRF token
     session.clear()
@@ -73,7 +111,7 @@ def setup_initial_admin_api():
     log_live_audit(
         action='ADMIN_ACCOUNT_INITIALIZED',
         outcome='SUCCESS',
-        reason=f"Initial Admin account '{user['username']}' provisioned via first-time setup.",
+        reason=f"Initial Admin account '{user['username']}' provisioned via atomic first-time setup.",
         actor=user['username']
     )
 
@@ -90,7 +128,25 @@ def register_account_api():
     """
     Self-registration for Website Owner or Viewer accounts ONLY.
     Attempting to self-register as ADMIN is strictly rejected (403).
+    Rate limited per client IP to prevent registration abuse.
     """
+    client_ip = get_client_ip()
+    max_att = int(current_app.config.get('AUTH_REGISTER_MAX_ATTEMPTS', 5))
+    win_sec = int(current_app.config.get('AUTH_REGISTER_WINDOW_SECONDS', 600))
+    ok_rl, retry_after = auth_rate_limiter.check_and_record(f"register:{client_ip}", max_att, win_sec)
+    if not ok_rl:
+        log_live_audit(
+            action='AUTH_RATE_LIMIT_BLOCKED',
+            outcome='BLOCKED',
+            reason=f"Registration rate limit exceeded for IP {client_ip}.",
+            actor=client_ip
+        )
+        return jsonify({
+            'status': 'error',
+            'error_type': 'RATE_LIMIT_EXCEEDED',
+            'message': f"Too many registration attempts. Please try again in {retry_after} seconds."
+        }), 429
+
     data = request.get_json(silent=True) or request.form or {}
     username = data.get('username')
     email = data.get('email')
@@ -141,10 +197,29 @@ def register_account_api():
 
 @auth_bp.route('/login', methods=['POST'])
 def login_api():
-    """Authenticates a user by username or email + password and establishes a secure session."""
+    """Authenticates a user by username or email + password with rate limiting and session regeneration."""
     data = request.get_json(silent=True) or request.form or {}
     identifier = (data.get('username') or data.get('email') or data.get('identifier') or '').strip()
     password = data.get('password') or ''
+
+    client_ip = get_client_ip()
+    max_att = int(current_app.config.get('AUTH_LOGIN_MAX_ATTEMPTS', 10))
+    win_sec = int(current_app.config.get('AUTH_LOGIN_WINDOW_SECONDS', 300))
+    ok_rl, retry_after = auth_rate_limiter.check_and_record(
+        f"login:{client_ip}:{identifier.lower()}", max_att, win_sec
+    )
+    if not ok_rl:
+        log_live_audit(
+            action='AUTH_RATE_LIMIT_BLOCKED',
+            outcome='BLOCKED',
+            reason=f"Login rate limit exceeded for '{identifier}' from IP {client_ip}.",
+            actor=identifier or client_ip
+        )
+        return jsonify({
+            'status': 'error',
+            'error_type': 'RATE_LIMIT_EXCEEDED',
+            'message': f"Too many login attempts. Please wait {retry_after} seconds before retrying."
+        }), 429
 
     user = authenticate_user(identifier, password)
     if not user:

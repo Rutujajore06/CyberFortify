@@ -90,6 +90,64 @@ def create_user(username, email, password, role=ROLE_VIEWER):
     return sanitize_user(row), None
 
 
+def create_initial_admin_atomic(username, email, password):
+    """
+    Atomically creates the first Administrator account using a SQLite BEGIN IMMEDIATE
+    write-lock transaction so concurrent /api/auth/setup-admin requests cannot race
+    to create multiple Admin accounts.
+    Returns (user_dict | None, error_code | None, error_message | None).
+    """
+    uname = (username or '').strip()
+    mail = (email or '').strip().lower()
+
+    if not _USERNAME_RE.match(uname):
+        return None, 'VALIDATION_ERROR', "Username must be 3-40 characters (letters, numbers, _, ., -)."
+    if not _EMAIL_RE.match(mail):
+        return None, 'VALIDATION_ERROR', "A valid email address is required."
+    if not password or not isinstance(password, str) or len(password) < 8:
+        return None, 'VALIDATION_ERROR', "Password must be at least 8 characters long."
+
+    user_uuid = f"usr-{uuid.uuid4().hex[:12]}"
+    pw_hash = generate_password_hash(password, method='scrypt')
+    now = _utc_now_iso()
+
+    conn = get_db_connection()
+    conn.isolation_level = None  # Explicit transaction control
+    cursor = conn.cursor()
+    try:
+        cursor.execute('BEGIN IMMEDIATE')
+        cursor.execute("SELECT count(*) as c FROM platform_users WHERE role = 'ADMIN' AND is_active = 1")
+        if cursor.fetchone()['c'] > 0:
+            cursor.execute('ROLLBACK')
+            conn.close()
+            return None, 'ADMIN_ALREADY_EXISTS', (
+                "An administrator account already exists. Ask an existing Admin to create additional accounts."
+            )
+
+        cursor.execute('''
+            INSERT INTO platform_users (
+                user_uuid, username, email, password_hash, role, is_active, created_at
+            )
+            VALUES (?, ?, ?, ?, 'ADMIN', 1, ?)
+        ''', (user_uuid, uname, mail, pw_hash, now))
+        cursor.execute('COMMIT')
+    except Exception as e:
+        try:
+            cursor.execute('ROLLBACK')
+        except Exception:
+            pass
+        conn.close()
+        err_str = str(e).lower()
+        if 'unique' in err_str:
+            return None, 'VALIDATION_ERROR', "A user with that username or email already exists."
+        return None, 'SETUP_ERROR', "Could not initialize administrator account."
+
+    cursor.execute('SELECT * FROM platform_users WHERE user_uuid = ?', (user_uuid,))
+    row = cursor.fetchone()
+    conn.close()
+    return sanitize_user(row), None, None
+
+
 def authenticate_user(identifier, password):
     """
     Verifies username or email + password using constant-time Werkzeug hash verification.
