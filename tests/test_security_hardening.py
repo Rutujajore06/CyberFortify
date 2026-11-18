@@ -237,6 +237,24 @@ class TestProductionSecurityHardening(unittest.TestCase):
         self.assertEqual(not_found.status_code, 404)
         self.assertEqual(not_found.json['error_type'], 'NOT_FOUND')
 
+    def test_06_vercel_entrypoint_and_public_hardening(self):
+        """Verifies Vercel WSGI entrypoint imports cleanly and IS_VERCEL enforces public security defaults."""
+        from api.index import app as vercel_app
+        res = vercel_app.test_client().get('/login')
+        self.assertEqual(res.status_code, 200)
+
+        class VercelConfig(Config):
+            IS_VERCEL = True
+            REQUIRE_AUTH = False
+            DEBUG = True
+            SECRET_KEY = 'b' * 40
+
+        v_app = create_app(config_class=VercelConfig)
+        self.assertTrue(v_app.config['LIVE_AUTH_ENFORCED'])
+        self.assertTrue(v_app.config['SESSION_COOKIE_SECURE'])
+        self.assertFalse(v_app.config['DEBUG'])
+        self.assertIsInstance(v_app.wsgi_app, ProxyFix)
+
 
 if __name__ == '__main__':
     unittest.main()

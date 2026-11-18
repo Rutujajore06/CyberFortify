@@ -26,10 +26,10 @@ def _cfg(key, default=None):
 def is_public_deployment():
     """
     Returns True if the application is configured for a public or production deployment
-    (e.g., Render, FLASK_ENV=production, non-loopback HOST, or LOCAL_DEMO_MODE=False).
+    (e.g., Render, Vercel, FLASK_ENV=production, non-loopback HOST, or LOCAL_DEMO_MODE=False).
     Public deployments NEVER allow unauthenticated access to protected endpoints.
     """
-    if _cfg('IS_RENDER', False):
+    if _cfg('IS_RENDER', False) or _cfg('IS_VERCEL', False):
         return True
     if str(_cfg('FLASK_ENV', 'development')).lower() == 'production':
         return True
