@@ -166,7 +166,11 @@ def target_search():
             'results': results
         }), 200
 
-    except sqlite3.OperationalError as e:
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         conn.close()
         log_target_request(status_code=500, custom_payload=f"q={query}&error={str(e)}")
         return jsonify({

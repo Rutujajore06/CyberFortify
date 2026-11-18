@@ -1,9 +1,177 @@
+import os
+import re
 import sqlite3
 import datetime
+from flask import has_app_context, current_app
 from app.config import Config
 
+
+def get_database_url():
+    """
+    Returns normalized PostgreSQL connection URL when DATABASE_URL or POSTGRES_URL
+    is configured (e.g., Neon Postgres on Vercel), or None to use local SQLite.
+    """
+    url = None
+    if has_app_context() and current_app.config.get('DATABASE_URL'):
+        url = current_app.config.get('DATABASE_URL')
+    if not url:
+        url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL') or getattr(Config, 'DATABASE_URL', None)
+    if not url:
+        return None
+    url = url.strip()
+    if url.startswith('postgres://'):
+        url = 'postgresql://' + url[len('postgres://'):]
+    return url
+
+
+def is_postgres():
+    """Returns True when CyberFortify is configured to use PostgreSQL."""
+    url = get_database_url()
+    return bool(url and url.startswith('postgresql://'))
+
+
+def translate_sql_to_postgres(sql, has_params=False):
+    """
+    Translates SQLite-flavored SQL used by CyberFortify into valid PostgreSQL SQL:
+    1. INTEGER PRIMARY KEY AUTOINCREMENT -> SERIAL PRIMARY KEY
+    2. INSERT OR IGNORE INTO ... -> INSERT INTO ... ON CONFLICT DO NOTHING
+    3. Replaces ? placeholders outside single-quoted literals with %s (escaping literal % when parameterized).
+    """
+    s = re.sub(
+        r'\bINTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT\b',
+        'SERIAL PRIMARY KEY',
+        sql,
+        flags=re.IGNORECASE
+    )
+
+    # Convert INSERT OR IGNORE INTO ... -> INSERT INTO ... ON CONFLICT DO NOTHING
+    if re.search(r'\bINSERT\s+OR\s+IGNORE\s+INTO\b', s, flags=re.IGNORECASE):
+        s = re.sub(r'\bINSERT\s+OR\s+IGNORE\s+INTO\b', 'INSERT INTO', s, count=1, flags=re.IGNORECASE)
+        stripped = s.rstrip()
+        if stripped.endswith(';'):
+            s = stripped[:-1] + ' ON CONFLICT DO NOTHING;'
+        else:
+            s = stripped + ' ON CONFLICT DO NOTHING'
+
+    # Replace ? outside single-quoted string literals with %s
+    out = []
+    in_single = False
+    i = 0
+    n = len(s)
+    while i < n:
+        ch = s[i]
+        if ch == "'":
+            out.append(ch)
+            if in_single and i + 1 < n and s[i + 1] == "'":
+                out.append("'")
+                i += 2
+                continue
+            in_single = not in_single
+        elif ch == '?' and not in_single:
+            out.append('%s')
+        elif ch == '%' and has_params:
+            out.append('%%')
+        else:
+            out.append(ch)
+        i += 1
+    return ''.join(out)
+
+
+class PostgresCursorWrapper:
+    """
+    Drop-in wrapper around psycopg2 RealDictCursor providing SQLite-compatible
+    ? placeholders, dict-like Row access, and automatic lastrowid via RETURNING id.
+    """
+    def __init__(self, pg_cursor):
+        self._cur = pg_cursor
+        self.lastrowid = None
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
+
+    def execute(self, sql, params=None):
+        has_params = params is not None and len(params) > 0
+        pg_sql = translate_sql_to_postgres(sql, has_params=has_params)
+
+        # Automatically capture lastrowid on standard INSERT statements
+        is_plain_insert = (
+            bool(re.match(r'^\s*INSERT\s+INTO\b', pg_sql, flags=re.IGNORECASE))
+            and 'RETURNING' not in pg_sql.upper()
+            and 'ON CONFLICT' not in pg_sql.upper()
+        )
+        if is_plain_insert:
+            pg_sql_ret = pg_sql.rstrip().rstrip(';') + ' RETURNING id'
+            if has_params:
+                self._cur.execute(pg_sql_ret, tuple(params))
+            else:
+                self._cur.execute(pg_sql_ret)
+            row = self._cur.fetchone()
+            self.lastrowid = row['id'] if row and 'id' in row else None
+        else:
+            if has_params:
+                self._cur.execute(pg_sql, tuple(params))
+            else:
+                self._cur.execute(pg_sql)
+            self.lastrowid = None
+        return self
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+    def fetchmany(self, size=None):
+        return self._cur.fetchmany(size)
+
+    def close(self):
+        self._cur.close()
+
+    def __iter__(self):
+        return iter(self._cur)
+
+
+class PostgresConnectionWrapper:
+    """Drop-in wrapper around psycopg2 connection matching sqlite3.Connection usage in CyberFortify."""
+    def __init__(self, pg_conn):
+        self._conn = pg_conn
+
+    def cursor(self):
+        import psycopg2.extras
+        return PostgresCursorWrapper(self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
+
+    def execute(self, sql, params=None):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
 def get_db_connection():
-    """Returns a SQLite database connection with Row factory enabled."""
+    """
+    Returns a database connection with dict-like Row access:
+    - PostgreSQL (Neon / Vercel Postgres) when DATABASE_URL or POSTGRES_URL is set.
+    - Local SQLite otherwise.
+    """
+    db_url = get_database_url()
+    if db_url and db_url.startswith('postgresql://'):
+        import psycopg2
+        # Neon requires SSL; ensure sslmode=require if not specified in URL
+        if 'sslmode=' not in db_url and 'localhost' not in db_url and '127.0.0.1' not in db_url:
+            sep = '&' if '?' in db_url else '?'
+            db_url = f"{db_url}{sep}sslmode=require"
+        pg_conn = psycopg2.connect(db_url, connect_timeout=10)
+        return PostgresConnectionWrapper(pg_conn)
+
     conn = sqlite3.connect(Config.DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
@@ -293,10 +461,18 @@ def init_db():
     ''')
 
     # Safe non-destructive migration: add owner_user_id to live_targets for IDOR enforcement
-    cursor.execute('PRAGMA table_info(live_targets)')
-    live_target_cols = {row['name'] for row in cursor.fetchall()}
-    if 'owner_user_id' not in live_target_cols:
-        cursor.execute('ALTER TABLE live_targets ADD COLUMN owner_user_id TEXT')
+    if is_postgres():
+        cursor.execute('''
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'live_targets' AND column_name = 'owner_user_id'
+        ''')
+        if not cursor.fetchone():
+            cursor.execute('ALTER TABLE live_targets ADD COLUMN owner_user_id TEXT')
+    else:
+        cursor.execute('PRAGMA table_info(live_targets)')
+        live_target_cols = {row['name'] for row in cursor.fetchall()}
+        if 'owner_user_id' not in live_target_cols:
+            cursor.execute('ALTER TABLE live_targets ADD COLUMN owner_user_id TEXT')
 
     conn.commit()
 
@@ -369,9 +545,12 @@ def seed_target_data(cursor):
         VALUES (?, ?, ?, ?, ?)
         ''', u)
 
-    # Seed some initial feedback
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    cursor.execute('''
-    INSERT OR IGNORE INTO target_feedback (id, author, content, submitted_at)
-    VALUES (1, 'alice', 'Loving the new banking portal interface! Smooth experience.', ?)
-    ''', (now,))
+    # Seed initial feedback only if table is empty (keeps PostgreSQL SERIAL sequence in sync)
+    cursor.execute('SELECT count(*) as c FROM target_feedback')
+    fb_row = cursor.fetchone()
+    if not fb_row or fb_row['c'] == 0:
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        cursor.execute('''
+        INSERT INTO target_feedback (author, content, submitted_at)
+        VALUES (?, ?, ?)
+        ''', ('alice', 'Loving the new banking portal interface! Smooth experience.', now))

@@ -3,7 +3,7 @@ import uuid
 import hashlib
 import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.database import get_db_connection
+from app.database import get_db_connection, is_postgres
 
 ROLE_ADMIN = 'ADMIN'
 ROLE_OWNER = 'WEBSITE_OWNER'
@@ -113,13 +113,21 @@ def create_initial_admin_atomic(username, email, password):
     now = _utc_now_iso()
 
     conn = get_db_connection()
-    conn.isolation_level = None  # Explicit transaction control
+    use_pg = is_postgres()
+    if not use_pg:
+        conn.isolation_level = None  # Explicit transaction control for SQLite
     cursor = conn.cursor()
     try:
-        cursor.execute('BEGIN IMMEDIATE')
+        if use_pg:
+            cursor.execute('LOCK TABLE platform_users IN EXCLUSIVE MODE')
+        else:
+            cursor.execute('BEGIN IMMEDIATE')
         cursor.execute("SELECT count(*) as c FROM platform_users WHERE role = 'ADMIN' AND is_active = 1")
         if cursor.fetchone()['c'] > 0:
-            cursor.execute('ROLLBACK')
+            if use_pg:
+                conn.rollback()
+            else:
+                cursor.execute('ROLLBACK')
             conn.close()
             return None, 'ADMIN_ALREADY_EXISTS', (
                 "An administrator account already exists. Ask an existing Admin to create additional accounts."
@@ -131,15 +139,21 @@ def create_initial_admin_atomic(username, email, password):
             )
             VALUES (?, ?, ?, ?, 'ADMIN', 1, ?)
         ''', (user_uuid, uname, mail, pw_hash, now))
-        cursor.execute('COMMIT')
+        if use_pg:
+            conn.commit()
+        else:
+            cursor.execute('COMMIT')
     except Exception as e:
         try:
-            cursor.execute('ROLLBACK')
+            if use_pg:
+                conn.rollback()
+            else:
+                cursor.execute('ROLLBACK')
         except Exception:
             pass
         conn.close()
         err_str = str(e).lower()
-        if 'unique' in err_str:
+        if 'unique' in err_str or 'duplicate' in err_str:
             return None, 'VALIDATION_ERROR', "A user with that username or email already exists."
         return None, 'SETUP_ERROR', "Could not initialize administrator account."
 

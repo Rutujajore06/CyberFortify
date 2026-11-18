@@ -8,7 +8,10 @@ class Config:
     IS_RENDER = bool(os.environ.get('RENDER'))
     IS_VERCEL = bool(os.environ.get('VERCEL'))
     SECRET_KEY = os.environ.get('SECRET_KEY', DEFAULT_DEV_SECRET_KEY)
-    # Vercel serverless filesystem is read-only outside /tmp; default to /tmp/cyberfortify.db on Vercel
+    # PostgreSQL connection string (Neon / Vercel Postgres / Render Postgres).
+    # When set, CyberFortify uses PostgreSQL automatically; otherwise uses local SQLite.
+    DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
+    # Vercel serverless filesystem is read-only outside /tmp; default to /tmp/cyberfortify.db on Vercel if no DATABASE_URL
     DATABASE_PATH = os.environ.get(
         'DATABASE_PATH',
         '/tmp/cyberfortify.db' if IS_VERCEL else os.path.join(BASE_DIR, 'cyberfortify.db')
