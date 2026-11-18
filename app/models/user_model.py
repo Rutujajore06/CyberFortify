@@ -1,5 +1,6 @@
 import re
 import uuid
+import hashlib
 import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.database import get_db_connection
@@ -45,7 +46,7 @@ def has_admin_user():
     return count > 0
 
 
-def create_user(username, email, password, role=ROLE_VIEWER):
+def create_user(username, email, password, role=ROLE_VIEWER, fixed_user_uuid=None):
     """
     Creates a new platform user with a salted memory-hard scrypt password hash.
     Returns (user_dict | None, error_message | None).
@@ -63,7 +64,7 @@ def create_user(username, email, password, role=ROLE_VIEWER):
     if role_norm not in VALID_ROLES:
         return None, f"Invalid role '{role}'. Must be one of: {', '.join(sorted(VALID_ROLES))}."
 
-    user_uuid = f"usr-{uuid.uuid4().hex[:12]}"
+    user_uuid = fixed_user_uuid or f"usr-{uuid.uuid4().hex[:12]}"
     pw_hash = generate_password_hash(password, method='scrypt')
     now = _utc_now_iso()
 
@@ -213,6 +214,7 @@ def bootstrap_admin_from_env(app_config):
     email = app_config.get('CYBERFORTIFY_ADMIN_EMAIL')
     pwd = app_config.get('CYBERFORTIFY_ADMIN_PASSWORD')
     if uname and email and pwd:
-        user, _ = create_user(uname, email, pwd, role=ROLE_ADMIN)
+        det_uuid = f"usr-env-{hashlib.sha256(uname.strip().lower().encode('utf-8')).hexdigest()[:12]}"
+        user, _ = create_user(uname, email, pwd, role=ROLE_ADMIN, fixed_user_uuid=det_uuid)
         return user
     return None

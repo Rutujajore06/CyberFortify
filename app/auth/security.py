@@ -9,6 +9,8 @@ from app.models.user_model import (
     ROLE_ADMIN,
     ROLE_OWNER,
     ROLE_VIEWER,
+    ROLE_LABELS,
+    VALID_ROLES,
     get_user_by_uuid
 )
 from app.models.live_target_model import log_live_audit
@@ -55,10 +57,27 @@ def get_current_user():
     if not user_uuid:
         return None
     user = get_user_by_uuid(user_uuid)
-    if not user:
-        session.pop('user_uuid', None)
-        return None
-    return user
+    if user:
+        return user
+
+    # On Vercel serverless deployments (/tmp SQLite is ephemeral per instance),
+    # fall back to Flask's SECRET_KEY-signed session claims so sessions stay valid across cold starts.
+    if _cfg('IS_VERCEL', False):
+        role = session.get('role')
+        username = session.get('username')
+        email = session.get('email')
+        if role in VALID_ROLES and username and email:
+            return {
+                'user_uuid': user_uuid,
+                'username': username,
+                'email': email,
+                'role': role,
+                'role_label': ROLE_LABELS.get(role, role),
+                'is_active': True
+            }
+
+    session.pop('user_uuid', None)
+    return None
 
 
 def get_or_create_csrf_token():

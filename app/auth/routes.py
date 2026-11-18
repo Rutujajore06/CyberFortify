@@ -26,6 +26,17 @@ from app.auth.security import (
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
 
 
+def _start_user_session(user):
+    """Regenerates session and stores signed user identity claims + CSRF token."""
+    session.clear()
+    session.permanent = True
+    session['user_uuid'] = user['user_uuid']
+    session['username'] = user['username']
+    session['email'] = user['email']
+    session['role'] = user['role']
+    return get_or_create_csrf_token()
+
+
 @auth_bp.route('/me', methods=['GET'])
 def auth_me_api():
     """Returns current session user (if logged in), CSRF token, auth mode, and admin setup status."""
@@ -103,10 +114,7 @@ def setup_initial_admin_api():
         }), http_code
 
     # Sign in the newly provisioned Admin with fresh session + CSRF token
-    session.clear()
-    session.permanent = True
-    session['user_uuid'] = user['user_uuid']
-    csrf_tok = get_or_create_csrf_token()
+    csrf_tok = _start_user_session(user)
 
     log_live_audit(
         action='ADMIN_ACCOUNT_INITIALIZED',
@@ -175,10 +183,7 @@ def register_account_api():
             'message': err
         }), 400
 
-    session.clear()
-    session.permanent = True
-    session['user_uuid'] = user['user_uuid']
-    csrf_tok = get_or_create_csrf_token()
+    csrf_tok = _start_user_session(user)
 
     log_live_audit(
         action='USER_REGISTERED',
@@ -236,10 +241,7 @@ def login_api():
         }), 401
 
     # Regenerate session to prevent session fixation
-    session.clear()
-    session.permanent = True
-    session['user_uuid'] = user['user_uuid']
-    csrf_tok = get_or_create_csrf_token()
+    csrf_tok = _start_user_session(user)
 
     log_live_audit(
         action='USER_LOGIN_SUCCESS',
